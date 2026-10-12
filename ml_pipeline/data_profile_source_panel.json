@@ -1,0 +1,150 @@
+{
+  "schema_version": "1",
+  "created": "2026-10-04",
+  "shape": {
+    "n_rows": 4296,
+    "n_cols": 10,
+    "memory_mb": 0.34,
+    "sampled": false,
+    "sample_rows": null
+  },
+  "target": {
+    "name": "tedpix",
+    "task": "regression",
+    "n_classes": null,
+    "class_balance": null,
+    "minority_frac": null
+  },
+  "columns": {
+    "observed_on": {
+      "kind": "datetime",
+      "missing_frac": 0.0,
+      "n_unique": 4296,
+      "unique_frac": 1.0,
+      "start": "2008-12-04",
+      "end": "2026-09-30"
+    },
+    "tedpix": {
+      "kind": "numeric",
+      "missing_frac": 0.0,
+      "n_unique": 4216,
+      "unique_frac": 0.9814,
+      "min": 7955.4,
+      "median": 87838.1,
+      "max": 7766531.3,
+      "skew": 1.9043,
+      "outlier_frac": 0.044
+    },
+    "usd-official": {
+      "kind": "numeric",
+      "missing_frac": 0.9991,
+      "n_unique": 3,
+      "unique_frac": 0.0007,
+      "min": 68739.0,
+      "median": 121199.95,
+      "max": 174181.9,
+      "skew": 0.0001,
+      "outlier_frac": 0.0
+    },
+    "usd-official-buy": {
+      "kind": "numeric",
+      "missing_frac": 0.9991,
+      "n_unique": 3,
+      "unique_frac": 0.0007,
+      "min": 68120.3,
+      "median": 120109.15,
+      "max": 172614.3,
+      "skew": 0.0001,
+      "outlier_frac": 0.0
+    },
+    "yield": {
+      "kind": "numeric",
+      "missing_frac": 0.9995,
+      "n_unique": 2,
+      "unique_frac": 0.0005,
+      "min": 41.764,
+      "median": 41.8755,
+      "max": 41.9869,
+      "skew": 0.0,
+      "outlier_frac": 0.0
+    },
+    "yield-history": {
+      "kind": "numeric",
+      "missing_frac": 0.3883,
+      "n_unique": 2628,
+      "unique_frac": 0.6117,
+      "min": 14.1514,
+      "median": 24.0009,
+      "max": 42.1377,
+      "skew": 0.7673,
+      "outlier_frac": 0.0251
+    },
+    "equal": {
+      "kind": "numeric",
+      "missing_frac": 0.2977,
+      "n_unique": 2939,
+      "unique_frac": 0.6841,
+      "min": 9099.3,
+      "median": 325620.0,
+      "max": 2066687.0,
+      "skew": 1.1402,
+      "outlier_frac": 0.0103
+    },
+    "gold": {
+      "kind": "numeric",
+      "missing_frac": 0.2814,
+      "n_unique": 2554,
+      "unique_frac": 0.5945,
+      "min": 86000.0,
+      "median": 533300.0,
+      "max": 25358000.0,
+      "skew": 2.7928,
+      "outlier_frac": 0.1241
+    },
+    "gold-world": {
+      "kind": "numeric",
+      "missing_frac": 0.392,
+      "n_unique": 2566,
+      "unique_frac": 0.5973,
+      "min": 757.4,
+      "median": 1499.905,
+      "max": 5400.25,
+      "skew": 2.121,
+      "outlier_frac": 0.1041
+    },
+    "usd-free": {
+      "kind": "numeric",
+      "missing_frac": 0.6262,
+      "n_unique": 1556,
+      "unique_frac": 0.3622,
+      "min": 13355.0,
+      "median": 49994.0,
+      "max": 257015.0,
+      "skew": 1.5855,
+      "outlier_frac": 0.066
+    }
+  },
+  "duplicates": {
+    "exact_row_frac": 0.0
+  },
+  "constant_columns": [],
+  "high_cardinality_categoricals": [],
+  "datetime_columns": [
+    "observed_on"
+  ],
+  "time_col": "observed_on",
+  "group_col": null,
+  "entity_candidates": [],
+  "leakage_suspects": [],
+  "traits": {
+    "n_rows": 4296,
+    "n_features": 9,
+    "task": "regression",
+    "minority_frac": null,
+    "has_datetime": true,
+    "has_groups": false,
+    "small_data": true,
+    "imbalanced": false,
+    "high_card_categoricals": []
+  }
+}

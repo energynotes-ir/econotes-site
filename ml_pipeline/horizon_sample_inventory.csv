@@ -1,0 +1,8 @@
+unit,n,mean_pct,median_pct,std_pct,q05_pct,q95_pct,positive_share_pct,target,horizon_family
+1 Tehran market sessions,4295,0.156765,0.056759,1.079163,-1.529538,2.076932,56.647264,TEDPIX close-to-close log return,Tehran market sessions
+5 Tehran market sessions,4291,0.780537,0.338024,3.391237,-4.017941,6.648726,56.094151,TEDPIX close-to-close log return,Tehran market sessions
+20 Tehran market sessions,4276,3.134910,1.752730,8.850321,-8.018787,18.287190,60.032741,TEDPIX close-to-close log return,Tehran market sessions
+1 calendar months,213,3.192156,2.013369,8.793071,-7.606612,17.007310,58.215962,TEDPIX month-end to month-end log return,Calendar months
+3 calendar months,211,9.416053,4.443983,18.282234,-11.562102,40.586522,66.350711,TEDPIX month-end to month-end log return,Calendar months
+6 calendar months,208,18.539484,13.548993,27.646882,-13.141308,60.188281,75.000000,TEDPIX month-end to month-end log return,Calendar months
+12 calendar months,202,36.300643,29.743654,40.447874,-14.630339,108.331997,85.148515,TEDPIX month-end to month-end log return,Calendar months

@@ -120,3 +120,83 @@ Keep existing endpoint shapes; additive schema changes are allowed for source-sp
 - The daily CBI weighted interbank-rate category currently has metadata but no values from the graph API. Explicit IBENA rate articles are too irregular for a continuous weekly series; keep the dashboard item marked as unconnected unless a verifiable archive is found.
 - OMO articles do not consistently publish every metric. Import explicit numeric values only; a missing value is not zero. If the local machine sleeps or `dev:all` stops, scheduled updates pause until the worker runs again.
 - Stop rather than silently changing units, date conventions, or a source response parser when the upstream shape changes.
+
+## Follow-up design: macro risk and scenario workspace
+
+**Design state:** The user approved an integrated risk/scenario workspace for macroeconomic analysis on 2026-10-04. The implementation plan is `docs/aegis/plans/2026-10-04-macro-risk-scenario-workspace.md`; implementation is underway. Shared chart range/hover, switchable chart layout, and persistent scenario paths remain open acceptance items. The exact prediction contract remains subject to the ML pipeline's Gate A after data inspection and EDA.
+
+### User, outcome, and scope
+
+- Audience: corporate finance managers, portfolio managers who need a macro view, and equity analysts.
+- Goal: make EcoNotes a coherent analytical workbench for how FX, inflation, liquidity, rates, precious metals, and broad equity indices interact; compare daily market behavior with medium-term macro responses.
+- Keep analysis at macro and broad-market level. Do not add constituent-stock coverage, portfolio holdings, portfolio weights, or stock-level risk to this work.
+- Reorganize the experience around a management overview, macro variables, cross-market relationships, risk and scenarios, fixed income, and data/method quality. Avoid a general-purpose drag-and-drop dashboard builder.
+- Preserve the current static GitHub Pages deployment for this phase. Published model and data artifacts are public; do not put private inputs or credentials in the static payload.
+
+### Current behavior and evidence
+
+- `src/components/scenario-desk.tsx` fits one contemporaneous, univariate OLS relationship between same-period log returns. The default window is 120 common daily observations; it does not model lags, future response horizons, regimes, or other macro drivers.
+- `src/components/risk-desk.tsx` selects one market at a time and shows drawdown and rolling volatility. VaR-like downside is the historical fifth percentile of the selected recent window; it is not a calibrated future-loss forecast.
+- `src/components/pair-analysis.tsx` gives a large panel to sample correlation while the normalized comparison and rolling-correlation charts share the page. The sample-correlation result should become a compact statistic beside or above the primary chart.
+- `src/lib/analytics.ts` is the current TypeScript owner for descriptive analytics. Model estimation and backtesting must have a reproducible, testable owner and must not be mixed into presentation components.
+- The current public snapshot has 4,296 daily TEDPIX observations, 3,017 daily equal-weight observations, 2,450 daily free-FX observations, 59 monthly real-FX observations, and 54–65 monthly CBI inflation observations, depending on the series. These counts are evidence for initial scope, not promises of future coverage.
+- Macro rows are keyed by series and observation date and refreshed with upserts. Previous revisions are not retained as a full point-in-time vintage history. Source release availability and vintage retention must be addressed before claiming a real-time macro backtest.
+
+### Interaction and visualization design
+
+- Give risk and scenario one top-level workspace with clear subviews for risk state, macro relationships, scenario response, and forecast validation. Keep model outputs, units, horizons, and data timestamps visible near the chart that uses them.
+- Use shared controls for selected broad-market series, period, native frequency, and forecast/response horizon. Daily and monthly data must remain on their native statistical frequency; step-line rendering must not create repeated observations.
+- Risk view defaults to synchronized small multiples with a shared date axis, range selection, and hover. Users can switch between stacked and side-by-side layouts. Comparing the same metric across markets uses a common scale.
+- Different raw units (for example volatility, drawdown, and yield) must not share a raw y-axis. Offer separate aligned panels or an explicitly labeled normalized percentile view. Do not create a composite stress score without a documented formula, component provenance, and validation.
+- Risk metrics to assess: realized volatility, downside semideviation, historical VaR/Expected Shortfall, drawdown depth/duration/recovery, and FX sensitivity. Keep dependence measures (rolling correlation, beta, and any conditional-correlation model) distinct from direct loss measures. Do not label macro funding conditions as trading liquidity risk without market microstructure data.
+- Cross-market view gives the normalized market-path chart and dynamic relationship charts primary width. Show sample correlation as a compact statistic with the paired-observation count, date range, and frequency. Synchronize hover and time-range selection across charts.
+- Scenario controls must distinguish a one-period shock from a persistent shock path. Render response by horizon with uncertainty bands and identify when a shock is outside the historical support.
+- Responsive behavior: side-by-side plots on wide screens when legible; stacked, synchronized plots on narrow screens. Do not drop units, sample counts, method notes, or observation dates on mobile.
+
+### Analytical design and scientific boundaries
+
+- Separate **forecasting** from **scenario/response analysis**. A forecasting model is selected for out-of-sample predictive performance. A scenario model describes a conditional response to a specified shock and is not automatically causal.
+- Candidate short-term targets: broad-index returns and forward realized volatility at 1, 5, and 20 Tehran trading sessions. Treat TEDPIX as the primary broad-market target and equal-weight as a robustness/market-breadth comparison; verify each index's return construction during data inspection.
+- Candidate medium-term targets: broad-index cumulative returns and selected risk indicators at 1, 3, 6, and 12 months. Use monthly/quarterly observations and release-availability timing; never interpolate low-frequency values into daily observations for estimation.
+- Candidate methods, subject to data profile and Gate A: simple zero-return/AR and persistence baselines; a parsimonious lagged market/FX model; local projections for horizon-specific conditional responses; and small VAR/ARDL-type systems only if the available sample supports the number of variables and lags. Compare rolling correlation with DCC only on data with adequate observations. These are candidate families, not pre-approved final models.
+- A simultaneous or structural system must specify how shocks are identified and pass stability/sensitivity checks. Without defensible identification, label results as reduced-form or conditional responses, not causal effects.
+- Keep candidate predictor sets small. Monthly FX/CPI samples are currently short; an unrestricted many-variable system is at high risk of overfitting. Add regime asymmetry only after the baseline has passed out-of-sample checks and there are enough observations in each regime.
+- Do not present an absolute promise of low forecast error. A forecast is eligible for a “validated” label only for horizons where it consistently improves on the predeclared naive baseline in chronological out-of-sample evaluation and has adequate test coverage. Otherwise show “no stable predictive edge” and retain descriptive risk/scenario views.
+
+### Forecast validation contract
+
+- Use rolling-origin or expanding-window evaluation. At each origin, fit only on information that would have been available then. Do not shuffle time rows or use future releases, revised observations, or test outcomes in feature selection or tuning.
+- Compare return forecasts with zero-return/random-walk and simple autoregressive baselines. Report MAE and RMSE, plus relative error versus the baseline, separately by horizon; direction accuracy is secondary.
+- Evaluate volatility forecasts against realized volatility using a suitable loss such as QLIKE and a simple persistence/EWMA baseline. Evaluate VaR/Expected Shortfall with quantile/tail scores and calibration/exceedance diagnostics, not only in-sample fit.
+- Report training and evaluation spans, origin count, target definition, input series and vintage policy, frequency, horizon, model/version, baseline error, candidate error, uncertainty, and known limitations.
+- Do not use one threshold across incomparable targets. Define the exact target, allowed inputs, forecast origin, horizons, primary metrics, and minimum evaluation coverage in the prediction contract before fitting; this is ML Gate A and requires explicit user approval.
+- Current historical rows cannot reconstruct all past macro data vintages. Until point-in-time releases are archived prospectively, label macro backtests as revised-data/pseudo-out-of-sample and do not claim true real-time forecast performance. Record `available_at`/first-seen timestamps and value revisions in an append-only vintage store before promoting real-time claims.
+
+### Runtime and output ownership
+
+- Keep the existing static publication path. Estimate and validate models in a reproducible Python research pipeline, then export a versioned, provenance-rich analytical snapshot alongside the public series snapshot. The client renders estimates and performs only the interactive scenario arithmetic supported by the exported model artifact; it does not silently fit a model in the browser.
+- The forecast artifact must include target, horizon, inputs, model identifier/version, training and evaluation periods, sample counts, metrics versus baseline, generation time, vintage limitations, and publication eligibility.
+- New data-vintage storage is additive. Preserve existing observation/API shapes while the vintage owner is introduced; do not delete current observations or rewrite historical definitions without an explicit migration plan.
+- Retain existing ECharts components where possible. Keep presentation components focused on interactions and rendering; isolate and unit-test numerical methods.
+
+### Acceptance criteria
+
+1. Risk comparisons support synchronized side-by-side and stacked layouts for selected broad-market/macro series, with shared dates and hover.
+2. Multiple raw risk measures are separated by units; normalized comparisons state their scale and transformation.
+3. The sample-correlation statistic is compact and does not compete with the main comparison or dynamic-relationship charts.
+4. Daily/short-term and monthly/medium-term analysis are separately labeled and never imply that forward-filled daily points are macro observations.
+5. Forecasts and scenarios are visually and methodologically distinct; no forecast is labeled validated without passing the baseline and temporal-evaluation rules above.
+6. Every visible estimate carries enough provenance to reproduce its inputs, definition, horizon, sample, and validation result.
+7. When the available sample or vintage information is insufficient, the UI reports that limitation and falls back to descriptive analysis rather than manufacturing confidence.
+8. The redesigned workspace remains usable at desktop and mobile widths and preserves the static deployment boundary.
+
+### Prior art and reuse references
+
+- Jordà (2005), “Estimation and Inference of Impulse Responses by Local Projections,” *American Economic Review* — candidate method for horizon-specific responses.
+- Engle (2002), “Dynamic Conditional Correlation: A Simple Class of Multivariate GARCH Models,” *Journal of Business & Economic Statistics* — candidate conditional-dependence model.
+- Patton (2011), “Volatility Forecast Comparison Using Imperfect Volatility Proxies,” *Journal of Econometrics* — reference for comparing volatility forecast losses.
+- Croushore and Stark (2001), “A Real-Time Data Set for Macroeconomists,” *Journal of Econometrics* — reference for point-in-time macro data and revision risk.
+
+### Implementation gate
+
+The approved design has an implementation plan at `docs/aegis/plans/2026-10-04-macro-risk-scenario-workspace.md`. Before any model fitting, follow `ml_pipeline/PIPELINE.md`: complete data inspection, EDA, and the prediction contract first; obtain explicit Gate A approval; then proceed through the temporal validation gates. No model has been trained or deployed under this design.

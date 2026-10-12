@@ -14,7 +14,7 @@ from fastapi import HTTPException
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from api.app.main import bond_history, bond_snapshot, dashboard_data, get_series
+from api.app.main import bond_history, bond_snapshot, dashboard_data, get_series, published_events
 
 
 def write_json(path: Path, payload: object) -> None:
@@ -35,6 +35,8 @@ def export_static_data(output_dir: Path) -> dict[str, int | str]:
     dashboard = dashboard_data(limit=20_000)
     dashboard["static_snapshot_at"] = generated_at
     write_json(api_dir / "dashboard-data.json", dashboard)
+    events = published_events()
+    write_json(api_dir / "events.json", events)
 
     snapshot = bond_snapshot()
     write_json(api_dir / "bonds.json", snapshot)
@@ -59,6 +61,7 @@ def export_static_data(output_dir: Path) -> dict[str, int | str]:
         "generated_at": generated_at,
         "series": len(dashboard["items"]),
         "points": sum(len(item["points"]) for item in dashboard["items"]),
+        "events": len(events["items"]),
         "bonds": len(instrument_ids),
     }
     write_json(output_dir / "snapshot.json", summary)

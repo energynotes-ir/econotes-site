@@ -128,6 +128,300 @@ export function drawdowns(points: Point[]): Point[] {
   });
 }
 
+export type RollingRiskPoint = Point & {
+  sampleCount: number;
+  tailSampleCount: number | null;
+  unit: "% per observation";
+  realizedVolatilityPct: number | null;
+  downsideSemideviationPct: number | null;
+  historicalVaRPct: number | null;
+  expectedShortfallPct: number | null;
+};
+
+/** Historical rolling risk of one series' observed log returns; values are not annualized. */
+export function rollingRisk(points: Point[], window = 30, tailProbability = 0.05): RollingRiskPoint[] {
+  if (!Number.isInteger(window) || window < 2) throw new RangeError("window must be an integer of at least 2");
+  if (!Number.isFinite(tailProbability) || tailProbability <= 0 || tailProbability >= 0.5) {
+    throw new RangeError("tailProbability must be greater than 0 and less than 0.5");
+  }
+
+  const ordered = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const observations = returns(ordered);
+  return observations.map((point, index) => {
+    const windowRows = observations.slice(Math.max(0, index - window + 1), index + 1);
+    const values = windowRows.map((row) => row.value).filter(Number.isFinite);
+    const sampleCount = values.length;
+    if (windowRows.length < window || sampleCount < window) {
+      return {
+        date: point.date,
+        value: point.value,
+        sampleCount,
+        tailSampleCount: null,
+        unit: "% per observation",
+        realizedVolatilityPct: null,
+        downsideSemideviationPct: null,
+        historicalVaRPct: null,
+        expectedShortfallPct: null,
+      };
+    }
+
+    const mean = values.reduce((sum, value) => sum + value, 0) / sampleCount;
+    const realizedVolatilityPct = Math.sqrt(
+      values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (sampleCount - 1),
+    );
+    const downsideSemideviationPct = Math.sqrt(
+      values.reduce((sum, value) => sum + Math.min(value, 0) ** 2, 0) / sampleCount,
+    );
+    const lowerReturnQuantile = quantile(values, tailProbability);
+    const tailValues = lowerReturnQuantile === null
+      ? []
+      : values.filter((value) => value <= lowerReturnQuantile);
+    const tailMean = tailValues.length
+      ? tailValues.reduce((sum, value) => sum + value, 0) / tailValues.length
+      : null;
+    const expectedShortfallPct = tailMean === null ? null : tailMean === 0 ? 0 : -tailMean;
+    const historicalVaRPct = lowerReturnQuantile === null
+      ? null
+      : lowerReturnQuantile === 0 ? 0 : -lowerReturnQuantile;
+
+    return {
+      date: point.date,
+      value: point.value,
+      sampleCount,
+      tailSampleCount: tailValues.length,
+      unit: "% per observation",
+      realizedVolatilityPct,
+      downsideSemideviationPct,
+      historicalVaRPct,
+      expectedShortfallPct,
+    };
+  });
+}
+
+export type VolatilityRegimePoint = Point & {
+  baselinePct: number;
+  thresholdPct: number;
+  multiplier: number;
+  state: "normal" | "high";
+};
+
+/** Classifies trailing volatility against a median built only from preceding estimates. */
+export function rollingVolatilityRegimes(
+  points: Point[],
+  volatilityWindow = 30,
+  baselineWindow = 60,
+  thresholdMultiplier = 1.5,
+): VolatilityRegimePoint[] {
+  if (!Number.isInteger(volatilityWindow) || volatilityWindow < 2) {
+    throw new RangeError("volatilityWindow must be an integer of at least 2");
+  }
+  if (!Number.isInteger(baselineWindow) || baselineWindow < 1) {
+    throw new RangeError("baselineWindow must be a positive integer");
+  }
+  if (!Number.isFinite(thresholdMultiplier) || thresholdMultiplier <= 0) {
+    throw new RangeError("thresholdMultiplier must be positive and finite");
+  }
+
+  const history = rollingRisk(points, volatilityWindow)
+    .filter((point): point is typeof point & { realizedVolatilityPct: number } =>
+      point.realizedVolatilityPct !== null && Number.isFinite(point.realizedVolatilityPct),
+    );
+  return history.flatMap((point, index) => {
+    if (index < baselineWindow) return [];
+    const baselinePct = quantile(
+      history.slice(index - baselineWindow, index).map((prior) => prior.realizedVolatilityPct),
+      0.5,
+    );
+    if (baselinePct === null || baselinePct <= 0) return [];
+    const thresholdPct = baselinePct * thresholdMultiplier;
+    return [{
+      date: point.date,
+      value: point.realizedVolatilityPct,
+      baselinePct,
+      thresholdPct,
+      multiplier: thresholdMultiplier,
+      state: point.realizedVolatilityPct > thresholdPct ? "high" as const : "normal" as const,
+    }];
+  });
+}
+
+export type ConditionalRegimeCorrelation = {
+  state: "normal" | "high";
+  count: number;
+  correlation: number | null;
+};
+
+/** Joins pair returns to the last regime known on that date; stale labels are omitted. */
+export function conditionalCorrelationByVolatilityRegime(
+  pairs: PairedReturn[],
+  regimes: VolatilityRegimePoint[],
+  maxAgeDays = 7,
+): ConditionalRegimeCorrelation[] {
+  if (!Number.isInteger(maxAgeDays) || maxAgeDays < 0) {
+    throw new RangeError("maxAgeDays must be a non-negative integer");
+  }
+  const orderedPairs = [...pairs].sort((a, b) => a.date.localeCompare(b.date));
+  const orderedRegimes = [...regimes].sort((a, b) => a.date.localeCompare(b.date));
+  const samples: Record<"normal" | "high", { left: number[]; right: number[] }> = {
+    normal: { left: [], right: [] },
+    high: { left: [], right: [] },
+  };
+
+  for (const pair of orderedPairs) {
+    let low = 0;
+    let high = orderedRegimes.length - 1;
+    let match = -1;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (orderedRegimes[mid].date <= pair.date) {
+        match = mid;
+        low = mid + 1;
+      } else high = mid - 1;
+    }
+    if (match < 0) continue;
+    const regime = orderedRegimes[match];
+    const ageDays = (Date.parse(pair.date) - Date.parse(regime.date)) / 86_400_000;
+    if (ageDays < 0 || ageDays > maxAgeDays || !Number.isFinite(pair.left) || !Number.isFinite(pair.right)) continue;
+    samples[regime.state].left.push(pair.left);
+    samples[regime.state].right.push(pair.right);
+  }
+
+  return (["normal", "high"] as const).map((state) => ({
+    state,
+    count: samples[state].left.length,
+    correlation: correlation(samples[state].left, samples[state].right),
+  }));
+}
+
+export type EventAnnotation = {
+  id: string | number;
+  title: string;
+  date: string;
+  category: string;
+  source: string | null;
+  endsOn?: string | null;
+};
+
+export type AlignedEventAnnotation = EventAnnotation & { chartDate: string };
+
+/** Places each published event on the next observed x-axis date, omitting out-of-range events. */
+export function alignEventAnnotations(events: EventAnnotation[], dates: string[]): AlignedEventAnnotation[] {
+  const axisDates = [...new Set(dates)].sort();
+  if (!axisDates.length) return [];
+  const aligned: AlignedEventAnnotation[] = [];
+  for (const event of events) {
+    if (event.date < axisDates[0] || event.date > axisDates.at(-1)!) continue;
+    let low = 0;
+    let high = axisDates.length - 1;
+    let match = -1;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (axisDates[mid] >= event.date) {
+        match = mid;
+        high = mid - 1;
+      } else low = mid + 1;
+    }
+    if (match >= 0) aligned.push({ ...event, chartDate: axisDates[match] });
+  }
+  return aligned.sort((a, b) => a.chartDate.localeCompare(b.chartDate));
+}
+
+export type DrawdownSpell = {
+  peakDate: string;
+  troughDate: string;
+  recoveryDate: string | null;
+  depthPct: number;
+  durationObservations: number;
+  recoveryObservations: number | null;
+  status: "recovered" | "ongoing" | "censored";
+};
+
+/** Drawdown episodes are measured on observed levels; invalid prices censor the current spell. */
+export function drawdownSpells(points: Point[]): DrawdownSpell[] {
+  const ordered = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const spells: DrawdownSpell[] = [];
+  let segmentIndex = -1;
+  let peak: { date: string; value: number; index: number } | null = null;
+  let active: {
+    peakDate: string;
+    peakIndex: number;
+    troughDate: string;
+    troughIndex: number;
+    depthPct: number;
+  } | null = null;
+
+  for (const point of ordered) {
+    if (!Number.isFinite(point.value) || point.value <= 0) {
+      if (active) {
+        spells.push({
+          peakDate: active.peakDate,
+          troughDate: active.troughDate,
+          recoveryDate: null,
+          depthPct: active.depthPct,
+          durationObservations: Math.max(0, segmentIndex - active.peakIndex),
+          recoveryObservations: null,
+          status: "censored",
+        });
+      }
+      segmentIndex = -1;
+      peak = null;
+      active = null;
+      continue;
+    }
+
+    segmentIndex += 1;
+    if (!peak) {
+      peak = { date: point.date, value: point.value, index: segmentIndex };
+      continue;
+    }
+
+    if (point.value >= peak.value) {
+      if (active) {
+        spells.push({
+          peakDate: active.peakDate,
+          troughDate: active.troughDate,
+          recoveryDate: point.date,
+          depthPct: active.depthPct,
+          durationObservations: segmentIndex - active.peakIndex,
+          recoveryObservations: segmentIndex - active.troughIndex,
+          status: "recovered",
+        });
+      }
+      peak = { date: point.date, value: point.value, index: segmentIndex };
+      active = null;
+      continue;
+    }
+
+    const depthPct = (point.value / peak.value - 1) * 100;
+    if (!active) {
+      active = {
+        peakDate: peak.date,
+        peakIndex: peak.index,
+        troughDate: point.date,
+        troughIndex: segmentIndex,
+        depthPct,
+      };
+    } else if (depthPct < active.depthPct) {
+      active.troughDate = point.date;
+      active.troughIndex = segmentIndex;
+      active.depthPct = depthPct;
+    }
+  }
+
+  if (active) {
+    spells.push({
+      peakDate: active.peakDate,
+      troughDate: active.troughDate,
+      recoveryDate: null,
+      depthPct: active.depthPct,
+      durationObservations: Math.max(0, segmentIndex - active.peakIndex),
+      recoveryObservations: null,
+      status: "ongoing",
+    });
+  }
+  return spells;
+}
+
 export function quantile(values: number[], fraction: number): number | null {
   const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
   if (!sorted.length) return null;
@@ -177,6 +471,16 @@ export function scenarioEstimate(model: Sensitivity, simpleShock: number) {
   return { value: simple(estimate), impact: simple(model.beta * shock), baseline: simple(model.alpha),
     low: simple(estimate - 1.96 * model.residualSigma),
     high: simple(estimate + 1.96 * model.residualSigma), extrapolated: shock < model.minShock || shock > model.maxShock };
+}
+
+export function repeatedShockPath(simpleShockPct: number, periods: number) {
+  if (!Number.isFinite(simpleShockPct) || simpleShockPct <= -100 || !Number.isInteger(periods) || periods < 1 || periods > 120) return [];
+  const multiplier = 1 + simpleShockPct / 100;
+  const path = Array.from({ length: periods }, (_, index) => {
+    const indexValue = 100 * multiplier ** (index + 1);
+    return { period: index + 1, indexValue, cumulativeChangePct: indexValue - 100 };
+  });
+  return path.every((point) => Number.isFinite(point.indexValue)) ? path : [];
 }
 
 export function relativePerformance(left: Point[], right: Point[]): Point[] {

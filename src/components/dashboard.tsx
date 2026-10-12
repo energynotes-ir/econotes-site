@@ -1,26 +1,23 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { Activity, ArrowLeft, BarChart3, CircleHelp, Database, Download, GitCompareArrows, Landmark, LayoutDashboard, Menu, RefreshCw, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Activity, ArrowLeft, BarChart3, CircleHelp, Database, Download, GitCompareArrows, Landmark, LayoutDashboard, Menu, RefreshCw, Search, Star, X } from "lucide-react";
 import Chart from "./chart";
-import PairAnalysis from "./pair-analysis";
+import MacroAnalysis, { type MacroAnalysisSubview } from "./macro-analysis";
 import StockMarket from "./stock-market";
 import BondMarket from "./bond-market";
 import RiskDesk from "./risk-desk";
-import ScenarioDesk from "./scenario-desk";
 import { change, downloadCsv, featuredIds, formatDate, formatNumber, frequencyLabel, groups, last, periodPoints, type Group, type Series } from "@/lib/data";
 import { returns, rollingVariance } from "@/lib/analytics";
 import { useSeries } from "@/lib/use-series";
 import { staticDataMode } from "@/lib/api";
 
-type View = "overview" | "series" | "compare" | "risk" | "scenario" | "catalog" | "method" | "stock" | "bonds";
+type View = "overview" | "series" | "analysis" | "catalog" | "method" | "stock" | "bonds";
 const categories = [
   { id: "overview" as View, label: "دیدبان اقتصاد", icon: LayoutDashboard },
   { id: "stock" as View, label: "شاخص‌های بورس", icon: BarChart3 },
   { id: "bonds" as View, label: "اوراق بدهی", icon: Landmark },
-  { id: "compare" as View, label: "تحلیل بین‌بازاری", icon: GitCompareArrows },
-  { id: "risk" as View, label: "دیدبان ریسک", icon: Activity },
-  { id: "scenario" as View, label: "آزمایش سناریو", icon: SlidersHorizontal },
+  { id: "analysis" as View, label: "تحلیل کلان", icon: GitCompareArrows },
   { id: "catalog" as View, label: "کتابخانه داده", icon: Database },
   { id: "method" as View, label: "روش و کیفیت داده", icon: CircleHelp },
 ];
@@ -71,19 +68,17 @@ function SeriesDetail({ item, series, open, toggleFavorite, favorite }: { item: 
 }
 
 function Method({ series }: { series: Series[] }) {
-  return <><div className="page-intro compact"><div><div className="eyebrow"><span className="eyebrow-line" /> روش و کیفیت داده</div><h1>هر عدد،<br /><em>یک مسیر قابل پیگیری.</em></h1><p>منبع، تواتر، تاریخ مشاهده و روش محاسبه را پیش از استفاده از تحلیل بررسی کنید.</p></div></div><div className="method-grid"><article className="panel method-card"><Database size={24} /><h3>یک منبع برای هر تعریف</h3><p>نمای دلار آزاد فقط قیمت پایانی تتر والکس به تومان است. نرخ خرید و فروش حواله ETS و آرشیو ماهانه رسمی بانک مرکزی سری‌های مستقل‌اند. انس جهانی قیمت spot در TGJU است و fixing لندن نیست. پوشش بورس شامل شاخص کل و هم‌وزن TSETMC است.</p></article><article className="panel method-card"><Activity size={24} /><h3>محاسبات قابل بازتولید</h3><p>همبستگی از بازده لگاریتمی هم‌دوره، نوسان از انحراف معیار نمونه‌ای و افت از بیشترین سطح گذشته محاسبه می‌شوند. سناریو یک رگرسیون تک‌متغیره هم‌زمان است. خروجی CSV سری‌ها، ریسک و سناریو در دسترس است.</p></article><article className="panel method-card"><CircleHelp size={24} /><h3>محدودیت‌های پوشش</h3><p>ETS روزانه تاریخچه کوتاهی دارد. CPI خام ایران از نرخ‌های انتشار اخیر عقب‌تر است؛ دلار حقیقی فقط تا آخرین CPI خام ادامه دارد. تاریخچه بازده اخزا برای اوراق فعال دریافت شده و ممکن است سوگیری بقا داشته باشد. به‌روزرسانی خودکار تضمین انتشار منبع نیست.</p></article></div>
+  return <><div className="page-intro compact"><div><div className="eyebrow"><span className="eyebrow-line" /> روش و کیفیت داده</div><h1>هر عدد،<br /><em>یک مسیر قابل پیگیری.</em></h1><p>منبع، تواتر، تاریخ مشاهده و روش محاسبه را پیش از استفاده از تحلیل بررسی کنید.</p></div></div><div className="method-grid"><article className="panel method-card"><Database size={24} /><h3>یک منبع برای هر تعریف</h3><p>نمای دلار آزاد فقط قیمت پایانی تتر والکس به تومان است. نرخ خرید و فروش حواله ETS و آرشیو ماهانه رسمی بانک مرکزی سری‌های مستقل‌اند. انس جهانی قیمت spot در TGJU است و fixing لندن نیست. پوشش بورس شامل شاخص کل و هم‌وزن TSETMC است.</p></article><article className="panel method-card"><Activity size={24} /><h3>محاسبات قابل بازتولید</h3><p>همبستگی از بازده لگاریتمی هم‌دوره، نوسان از انحراف معیار نمونه‌ای و افت از بیشترین سطح گذشته محاسبه می‌شوند. OLS سناریو فقط حساسیت تاریخی هم‌زمان و یک‌دوره‌ای را توصیف می‌کند؛ مسیر شوک پایا فعلاً فقط ورودی محرک را نشان می‌دهد. پاسخ چنددوره‌ای و باند عدم‌قطعیت تا انتشار artifact افق‌دارِ تأیید و اعتبارسنجی‌شده در دسترس نیستند. خروجی CSV سری‌ها، ریسک و سناریو ارائه می‌شود.</p></article><article className="panel method-card"><CircleHelp size={24} /><h3>محدودیت‌های پوشش</h3><p>ETS روزانه تاریخچه کوتاهی دارد. CPI خام ایران از نرخ‌های انتشار اخیر عقب‌تر است؛ دلار حقیقی فقط تا آخرین CPI خام ادامه دارد. تاریخچه بازده اخزا برای اوراق فعال دریافت شده و ممکن است سوگیری بقا داشته باشد. به‌روزرسانی خودکار تضمین انتشار منبع نیست.</p></article></div>
     <div className="panel risk-table-panel"><div className="panel-header"><div><span className="panel-kicker">پوشش واقعی داده‌های دریافت‌شده</span><h3>گزارش پوشش و تازگی</h3></div><span className="badge">{formatNumber(series.length)} سری</span></div><div className="table-scroll"><table className="risk-table coverage-table"><thead><tr><th>سری</th><th>تواتر</th><th>مشاهده</th><th>شروع</th><th>آخرین مشاهده</th><th>منبع</th></tr></thead><tbody>{series.map((s) => <tr key={s.id}><th scope="row">{s.shortTitle}</th><td>{frequencyLabel(s.frequency)}</td><td>{formatNumber(s.points.length)}</td><td>{formatDate(s.points[0].date)}</td><td>{formatDate(s.points.at(-1)!.date)}</td><td>{s.source}</td></tr>)}</tbody></table></div></div><div className="panel method-strip">بازده اخزا: [(ارزش اسمی ÷ قیمت معامله)^(۳۶۵ ÷ روز تا سررسید) − ۱] × ۱۰۰. ارزش اسمی یک‌میلیون ریال است؛ این برآورد از YTM منتشرشده فرابورس جداست. هیچ سری با داده فرضی تکمیل نمی‌شود.</div></>;
 }
 
 export default function Dashboard() {
   const { series, loading, error, missing, refresh, snapshotAt } = useSeries();
   const [view, setView] = useState<View>("overview");
+  const [analysisStartSubview, setAnalysisStartSubview] = useState<MacroAnalysisSubview>("risk");
   const [selectedId, setSelectedId] = useState("tedpix");
   const [search, setSearch] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [pairLeft, setPairLeft] = useState("tedpix");
-  const [pair, setPair] = useState("usd-free");
-  const [windowSize, setWindowSize] = useState(60);
   const savedFavorites = useSyncExternalStore(subscribeWatchlist, readWatchlist, initialWatchlist);
   const favorites: string[] = (() => { try { const data: unknown = JSON.parse(savedFavorites); return Array.isArray(data) ? data.filter((item): item is string => typeof item === "string") : []; } catch { return []; } })();
   const [onlyFavorites, setOnlyFavorites] = useState(false);
@@ -94,6 +89,7 @@ export default function Dashboard() {
     catch { setStorageMessage("دیدبان برای این جلسه تغییر کرد؛ مرورگر ذخیره‌سازی دائمی را اجازه نداد."); }
   }
   const selectView = (next: View) => { setView(next); setMobileOpen(false); };
+  const openAnalysis = (subview: MacroAnalysisSubview) => { setAnalysisStartSubview(subview); selectView("analysis"); };
   const open = (id: string) => { setSelectedId(id); selectView("series"); };
   const current = series.find((item) => item.id === selectedId) ?? series[0];
   const featured = (onlyFavorites ? favorites : featuredIds).map((id) => series.find((s) => s.id === id)).filter((s): s is Series => Boolean(s));
@@ -109,17 +105,15 @@ export default function Dashboard() {
       {missing.length > 0 && <div className="data-alert" role="status">{formatNumber(missing.length)} سری دریافت نشد: {missing.join("، ")}. تحلیل فقط از سری‌های در دسترس استفاده می‌کند.</div>}
       {storageMessage && <div className="data-alert" role="status">{storageMessage}</div>}
       {loading && !series.length ? <div className="loading-state" role="status"><div className="eyebrow">در حال دریافت سری‌های منبع‌دار…</div><div className="skeleton-title" /><div className="market-grid">{Array.from({ length: 8 }, (_, i) => <div className="skeleton-card" key={i} />)}</div></div> : !series.length ? <div className="panel empty-state"><Database size={32} /><h1>داده در دسترس نیست</h1><p>پس از برقراری اتصال، سری‌ها و ابزارهای تحلیل نمایش داده می‌شوند.</p><button className="outline-button" onClick={refresh}>دریافت دوباره</button></div> : <>
-      {view === "overview" && <><div className="page-intro"><div><div className="eyebrow"><span className="eyebrow-line" /> داده، ریسک و حساسیت بازار</div><h1>اقتصاد را ببینید.<br /><em>تصمیم را دقیق‌تر کنید.</em></h1><p>از تغییر یک متغیر تا ریسک چند بازار؛ سری‌های منبع‌دار و ابزارهای قابل بازتولید، در یک میز پژوهش.</p><div className="intro-actions"><button className="primary-button" onClick={() => selectView("risk")}>بررسی ریسک بازار <ArrowLeft size={16} /></button><button className="text-action" onClick={() => selectView("scenario")}>ساخت سناریو <ArrowLeft size={16} /></button></div></div><div className="intro-aside"><span>کتابخانه پژوهش</span><strong>{formatNumber(series.length)}</strong><small>سری دارای مشاهده<br />روزانه، هفتگی، ماهانه و فصلی</small><button className="text-action" onClick={() => selectView("method")}>بررسی پوشش <ArrowLeft size={14} /></button></div></div>
+      {view === "overview" && <><div className="page-intro"><div><div className="eyebrow"><span className="eyebrow-line" /> داده، ریسک و حساسیت بازار</div><h1>اقتصاد را ببینید.<br /><em>تصمیم را دقیق‌تر کنید.</em></h1><p>از تغییر یک متغیر تا ریسک چند بازار؛ سری‌های منبع‌دار و ابزارهای قابل بازتولید، در یک میز پژوهش.</p><div className="intro-actions"><button className="primary-button" onClick={() => openAnalysis("risk")}>بررسی ریسک بازار <ArrowLeft size={16} /></button><button className="text-action" onClick={() => openAnalysis("scenario")}>ساخت سناریو <ArrowLeft size={16} /></button></div></div><div className="intro-aside"><span>کتابخانه پژوهش</span><strong>{formatNumber(series.length)}</strong><small>سری دارای مشاهده<br />روزانه، هفتگی، ماهانه و فصلی</small><button className="text-action" onClick={() => selectView("method")}>بررسی پوشش <ArrowLeft size={14} /></button></div></div>
         <div className="section-title"><div><span className="section-index">01</span><h2>{onlyFavorites ? "دیدبان من" : "متغیرهای کلیدی"}</h2><span className="section-sub">آخرین مشاهده · تغییر از مشاهده قبل</span></div><div className="period-tabs"><button className={!onlyFavorites ? "selected" : ""} onClick={() => setOnlyFavorites(false)}>منتخب‌ها</button><button className={onlyFavorites ? "selected" : ""} onClick={() => setOnlyFavorites(true)}><Star size={12} /> دیدبان من</button></div></div><div className="market-grid">{featured.map((s, index) => <Card key={s.id} item={s} wide={index === 0} open={() => open(s.id)} />)}</div>{!featured.length && <div className="panel empty-state"><Star size={25} /><p>یک سری را باز کنید و «افزودن به دیدبان» را بزنید. انتخاب‌ها در همین مرورگر ذخیره می‌شوند.</p><button className="outline-button" onClick={() => selectView("catalog")}>انتخاب از کتابخانه</button></div>}
-        <div className="section-title spaced-title"><div><span className="section-index">02</span><h2>نبض ریسک</h2><span className="section-sub">نوسان و افت در پنج بازار منتخب</span></div><button className="text-action" onClick={() => selectView("risk")}>گزارش کامل <ArrowLeft size={16} /></button></div><RiskDesk series={series} compact />
-        <div className="workspace-tools"><article className="panel tool-feature"><span className="panel-kicker">از مشاهده به سناریو</span><h3>بازار در برابر یک شوک ارزی</h3><p>حساسیت تاریخی بورس یا طلا را بسنجید؛ قدرت توضیح مدل و دامنه خطا را کنار نتیجه ببینید.</p><button className="text-action" onClick={() => selectView("scenario")}>باز کردن آزمایش سناریو <ArrowLeft size={16} /></button></article><article className="panel tool-feature"><span className="panel-kicker">روابط متغیرها</span><h3>چه زمانی بازارها هم‌جهت‌اند؟</h3><p>همبستگی متحرک، عملکرد نسبی و شکاف نرخ ارز و طلا را روی تاریخ‌های هم‌دوره بررسی کنید.</p><button className="text-action" onClick={() => selectView("compare")}>تحلیل بین‌بازاری <ArrowLeft size={16} /></button></article></div>
+        <div className="section-title spaced-title"><div><span className="section-index">02</span><h2>نبض ریسک</h2><span className="section-sub">نوسان و افت در پنج بازار منتخب</span></div><button className="text-action" onClick={() => openAnalysis("risk")}>گزارش کامل <ArrowLeft size={16} /></button></div><RiskDesk series={series} compact />
+        <div className="workspace-tools"><article className="panel tool-feature"><span className="panel-kicker">از مشاهده به سناریو</span><h3>بازار در برابر یک شوک ارزی</h3><p>حساسیت تاریخی بورس یا طلا را بسنجید؛ قدرت توضیح مدل و دامنه خطا را کنار نتیجه ببینید.</p><button className="text-action" onClick={() => openAnalysis("scenario")}>باز کردن آزمایش سناریو <ArrowLeft size={16} /></button></article><article className="panel tool-feature"><span className="panel-kicker">روابط متغیرها</span><h3>چه زمانی بازارها هم‌جهت‌اند؟</h3><p>همبستگی متحرک، عملکرد نسبی و شکاف نرخ ارز و طلا را روی تاریخ‌های هم‌دوره بررسی کنید.</p><button className="text-action" onClick={() => openAnalysis("relationships")}>تحلیل بین‌بازاری <ArrowLeft size={16} /></button></article></div>
       </>}
       {view === "series" && current && <SeriesDetail key={current.id} item={current} series={series} open={open} toggleFavorite={() => toggleFavorite(current.id)} favorite={favorites.includes(current.id)} />}
       {view === "stock" && <StockMarket series={series} />}
       {view === "bonds" && <BondMarket />}
-      {view === "risk" && <RiskDesk series={series} />}
-      {view === "scenario" && <ScenarioDesk series={series} />}
-      {view === "compare" && <PairAnalysis series={series} leftId={pairLeft} rightId={pair} onLeftChange={(next) => { if (next === pair) setPair(pairLeft); setPairLeft(next); }} onRightChange={(next) => { if (next === pairLeft) setPairLeft(pair); setPair(next); }} windowSize={windowSize} onWindowChange={setWindowSize} />}
+      {view === "analysis" && <MacroAnalysis series={series} initialSubview={analysisStartSubview} />}
       {view === "catalog" && <><div className="page-intro compact"><div><div className="eyebrow"><span className="eyebrow-line" /> کتابخانه پژوهش</div><h1>از متغیر کلان،<br /><em>تا جزئیات منبع.</em></h1><p>هر سری را برای روند تاریخی، سنجش تغییرات، اجزای مرتبط و خروجی داده باز کنید.</p></div></div><div className="catalog-toolbar"><div className="search-box"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="نام متغیر، گروه یا منبع…" aria-label="جست‌وجوی سری" /></div><span>{formatNumber(filtered.length)} سری</span></div><div className="catalog-groups">{(Object.keys(groups) as Group[]).map((group) => { const items = filtered.filter((s) => s.group === group); return items.length ? <section className="panel catalog-section" key={group}><div className="catalog-group-head"><h2>{groups[group]}</h2><span>{formatNumber(items.length)} سری</span></div>{items.map((s) => <button className="catalog-row" key={s.id} onClick={() => open(s.id)}><span className="catalog-dot" style={{ background: s.color }} /><span className="catalog-name"><strong>{s.title}</strong><small>{s.source} · آخرین مشاهده {formatDate(s.points.at(-1)!.date)}</small></span><span className="catalog-source">{formatNumber(s.points.length)} مشاهده</span><span className="badge">{frequencyLabel(s.frequency)}</span><ArrowLeft size={16} /></button>)}</section> : null; })}</div>{!filtered.length && <div className="empty-state">سری مطابق جست‌وجو پیدا نشد.</div>}</>}
       {view === "method" && <Method series={series} />}
       </>}
