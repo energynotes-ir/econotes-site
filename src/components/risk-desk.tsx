@@ -5,12 +5,13 @@ import { Download } from "lucide-react";
 import Chart from "./chart";
 import { drawdownSpells, riskSummary, rollingRisk } from "@/lib/analytics";
 import { downloadCsv, formatDate, formatNumber, riskIds, type Series } from "@/lib/data";
+import { themeColors } from "@/lib/theme";
 
 const measures = [
-  { key: "realizedVolatilityPct", title: "نوسان تحقق‌یافته", color: "#88c0d0" },
-  { key: "downsideSemideviationPct", title: "نیم‌انحراف نزولی", color: "#a3be8c" },
-  { key: "historicalVaRPct", title: "VaR تاریخی ۹۵٪", color: "#ebcb8b" },
-  { key: "expectedShortfallPct", title: "ES تاریخی ۹۵٪", color: "#bf616a" },
+  { key: "realizedVolatilityPct", title: "نوسان تحقق‌یافته", color: themeColors.primary },
+  { key: "downsideSemideviationPct", title: "نیم‌انحراف نزولی", color: themeColors.positive },
+  { key: "historicalVaRPct", title: "VaR تاریخی ۹۵٪", color: themeColors.accent },
+  { key: "expectedShortfallPct", title: "ES تاریخی ۹۵٪", color: themeColors.negative },
 ] as const;
 
 type MeasureKey = (typeof measures)[number]["key"];

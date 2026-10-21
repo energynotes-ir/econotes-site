@@ -6,6 +6,7 @@ import type { EChartsOption, EChartsType, Payload } from "echarts";
 import { alignEventAnnotations, type EventAnnotation } from "@/lib/analytics";
 import type { Point } from "@/lib/data";
 import { formatDate, formatNumber } from "@/lib/data";
+import { themeColors } from "@/lib/theme";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 const chartGroups = new Map<string, Set<EChartsType>>();
@@ -28,7 +29,7 @@ type Props = {
   syncGroup?: string;
 };
 
-export default function Chart({ points, color = "#88c0d0", height = 300, mini = false, area = true, unit = "", step = false, comparison, eventDates = [], events = [], domain, type = "line", sharedDates, syncGroup }: Props) {
+export default function Chart({ points, color = themeColors.primary, height = 300, mini = false, area = true, unit = "", step = false, comparison, eventDates = [], events = [], domain, type = "line", sharedDates, syncGroup }: Props) {
   const chartRef = useRef<EChartsType | null>(null);
   const visible = points.filter((p) => Number.isFinite(p.value));
   const primary = new Map(visible.map((point) => [point.date, point]));
@@ -38,7 +39,7 @@ export default function Chart({ points, color = "#88c0d0", height = 300, mini = 
   const eventMarks = alignEventAnnotations(events, dates).map((event) => ({
     name: `${event.title} · ${formatDate(event.date)} · ${event.category}`,
     xAxis: event.chartDate,
-    lineStyle: { color: "#ebcb8b", type: "dotted" as const, width: 1.5, opacity: 0.85 },
+    lineStyle: { color: themeColors.accent, type: "dotted" as const, width: 1.5, opacity: 0.85 },
   }));
   const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
   const option: EChartsOption = {
@@ -46,11 +47,11 @@ export default function Chart({ points, color = "#88c0d0", height = 300, mini = 
     grid: mini ? { left: 1, right: 1, top: 3, bottom: 1 } : { left: 68, right: 22, top: 24, bottom: 76 },
     dataZoom: mini ? undefined : [
       { type: "inside", filterMode: "none", zoomOnMouseWheel: false, moveOnMouseWheel: false },
-      { type: "slider", height: 18, bottom: 7, borderColor: "#434c5e", backgroundColor: "#2e3440", fillerColor: "#88c0d026", handleStyle: { color: "#88c0d0" }, textStyle: { color: "#d8dee9", fontFamily: "Vazirmatn" }, labelFormatter: (value: unknown) => { const index = Number(value); return dates[index] ? formatDate(dates[index]) : ""; } },
+      { type: "slider", height: 18, bottom: 7, borderColor: themeColors.border, backgroundColor: "#F1F5F9", fillerColor: "#1E40AF24", handleStyle: { color: themeColors.primary }, textStyle: { color: themeColors.muted, fontFamily: "Vazirmatn" }, labelFormatter: (value: unknown) => { const index = Number(value); return dates[index] ? formatDate(dates[index]) : ""; } },
     ],
     tooltip: mini ? { show: false } : {
-      trigger: "axis", confine: true, backgroundColor: "#2e3440", borderColor: "#4c566a", textStyle: { color: "#eceff4", fontFamily: "Vazirmatn", fontSize: 12 },
-      axisPointer: { type: "cross", lineStyle: { color: "#a9bbb9", type: "dashed" } },
+      trigger: "axis", confine: true, backgroundColor: "#FFFFFF", borderColor: themeColors.border, textStyle: { color: themeColors.text, fontFamily: "Vazirmatn", fontSize: 12 },
+      axisPointer: { type: "cross", lineStyle: { color: "#94A3B8", type: "dashed" } },
       formatter: (items: unknown) => {
         const rows = items as Array<{ dataIndex: number; marker: string; seriesName: string }>;
         const index = rows[0]?.dataIndex;
@@ -63,19 +64,19 @@ export default function Chart({ points, color = "#88c0d0", height = 300, mini = 
           comparisonPoint && comparison ? { point: comparisonPoint, name: comparison.name, color: comparison.color, marker: rows.find((row) => row.seriesName === comparison.name)?.marker ?? "" } : null,
         ].filter((row): row is NonNullable<typeof row> => row !== null);
         if (!values.length) return "";
-        return `<div style="min-width:145px;text-align:right"><b>${formatDate(date)}</b><div style="color:#90a4ae;font-size:11px;direction:ltr;text-align:right">${date}</div>${values.map(({ point, name, marker }) => {
+        return `<div style="min-width:145px;text-align:right"><b>${formatDate(date)}</b><div style="color:${themeColors.muted};font-size:11px;direction:ltr;text-align:right">${date}</div>${values.map(({ point, name, marker }) => {
           const sourcePoint = point;
           const originalDate = sourcePoint?.sourceDate;
           const sourceLabel = originalDate && originalDate !== date
-            ? `<div style="color:#90a4ae;font-size:11px">تاریخ مشاهده اصلی: ${formatDate(originalDate)}</div>` : "";
+            ? `<div style="color:${themeColors.muted};font-size:11px">تاریخ مشاهده اصلی: ${formatDate(originalDate)}</div>` : "";
           return `<div style="margin-top:7px">${marker} ${escapeHtml(name)}: <b>${formatNumber(point.value, 2)}</b> ${escapeHtml(unit)}${sourceLabel}</div>`;
-        }).join("")}${p?.symbol ? `<div style="margin-top:7px;color:#e2ae69">${escapeHtml(p.symbol)}</div>` : ""}</div>`;
+        }).join("")}${p?.symbol ? `<div style="margin-top:7px;color:${themeColors.accent}">${escapeHtml(p.symbol)}</div>` : ""}</div>`;
       },
     },
-    xAxis: { type: "category", show: !mini, boundaryGap: type === "scatter", data: dates, axisLine: { lineStyle: { color: "#344857" } }, axisTick: { show: false }, axisLabel: { color: "#8197a3", fontFamily: "Vazirmatn", formatter: (date: string) => { try { return new Intl.DateTimeFormat("fa-IR-u-ca-persian", { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`)); } catch { return date; } }, interval: "auto", hideOverlap: true, margin: 14 }, splitLine: { show: false } },
-    yAxis: { type: "value", min: domain?.[0], max: domain?.[1], scale: !domain, show: !mini, axisLabel: { color: "#8197a3", fontFamily: "Vazirmatn", formatter: (v: number) => Math.abs(v) >= 1e6 ? `${formatNumber(v / 1e6, 1)}م` : Math.abs(v) >= 1e3 ? `${formatNumber(v / 1e3, 0)}ه` : formatNumber(v, 1) }, splitLine: { lineStyle: { color: "#263b49", type: "dashed" } } },
+    xAxis: { type: "category", show: !mini, boundaryGap: type === "scatter", data: dates, axisLine: { lineStyle: { color: themeColors.border } }, axisTick: { show: false }, axisLabel: { color: themeColors.muted, fontFamily: "Vazirmatn", formatter: (date: string) => { try { return new Intl.DateTimeFormat("fa-IR-u-ca-persian", { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`)); } catch { return date; } }, interval: "auto", hideOverlap: true, margin: 14 }, splitLine: { show: false } },
+    yAxis: { type: "value", min: domain?.[0], max: domain?.[1], scale: !domain, show: !mini, axisLabel: { color: themeColors.muted, fontFamily: "Vazirmatn", formatter: (v: number) => Math.abs(v) >= 1e6 ? `${formatNumber(v / 1e6, 1)}م` : Math.abs(v) >= 1e3 ? `${formatNumber(v / 1e3, 0)}ه` : formatNumber(v, 1) }, splitLine: { lineStyle: { color: themeColors.grid, type: "dashed" } } },
     series: [
-      { name: "مقدار", type, data: dates.map((date) => primary.get(date)?.value ?? null), smooth: type === "line" && !step ? 0.18 : undefined, step: step ? "end" : undefined, showSymbol: type === "scatter" ? true : false, symbol: "circle", symbolSize: type === "scatter" ? 8 : 4, lineStyle: { color, width: type === "scatter" ? 0 : mini ? 2 : 2.6 }, itemStyle: { color }, areaStyle: type === "line" && area ? { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: `${color}39` }, { offset: 1, color: `${color}00` }] } } : undefined, markLine: mini || type === "scatter" || (!marks.length && !eventMarks.length) ? undefined : { silent: false, tooltip: { show: true, trigger: "item" }, symbol: ["none", "none"], label: { show: false }, lineStyle: { color: "#d3a260", type: "dashed", opacity: 0.65 }, data: [...marks, ...eventMarks] } },
+      { name: "مقدار", type, data: dates.map((date) => primary.get(date)?.value ?? null), smooth: type === "line" && !step ? 0.18 : undefined, step: step ? "end" : undefined, showSymbol: type === "scatter" ? true : false, symbol: "circle", symbolSize: type === "scatter" ? 8 : 4, lineStyle: { color, width: type === "scatter" ? 0 : mini ? 2 : 2.6 }, itemStyle: { color }, areaStyle: type === "line" && area ? { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: `${color}39` }, { offset: 1, color: `${color}00` }] } } : undefined, markLine: mini || type === "scatter" || (!marks.length && !eventMarks.length) ? undefined : { silent: false, tooltip: { show: true, trigger: "item" }, symbol: ["none", "none"], label: { show: false }, lineStyle: { color: themeColors.accent, type: "dashed", opacity: 0.72 }, data: [...marks, ...eventMarks] } },
       ...(comparison ? [{ name: comparison.name, type: "line" as const, data: dates.map((date) => secondary?.get(date)?.value ?? null), smooth: comparison.step ? false : 0.18, step: comparison.step ? "end" as const : undefined, showSymbol: false, lineStyle: { color: comparison.color, width: 2 }, itemStyle: { color: comparison.color } }] : []),
     ],
   };

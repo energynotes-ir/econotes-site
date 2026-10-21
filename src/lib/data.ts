@@ -10,7 +10,7 @@ export const groups: Record<Group, string> = {
   markets: "شاخص‌های بورس", metals: "فلزات گران‌بها", currency: "ارز",
   rates: "نرخ‌های بهره", money: "پول و نقدینگی", prices: "قیمت‌ها و تورم",
 };
-export const palette = ["#88c0d0", "#81a1c1", "#ebcb8b", "#a3be8c", "#b48ead", "#d08770", "#8fbcbb", "#bf616a"];
+export { seriesPalette as palette } from "./theme";
 export const featuredIds = ["tedpix", "equal", "usd-free", "gold", "gold-world", "yield", "liquidity", "base-money", "cpi-mom-cbi", "cpi-yoy-cbi", "usd-official-remittance-cbi", "omo-repo"];
 export const riskIds = ["tedpix", "equal", "usd-free", "gold", "gold-world"];
 export const shortTitles: Record<string, string> = {

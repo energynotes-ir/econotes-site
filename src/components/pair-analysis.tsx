@@ -13,6 +13,7 @@ import {
 } from "@/lib/analytics";
 import { formatDate, formatNumber, frequencyLabel, type Frequency, type Point, type Series } from "@/lib/data";
 import type { MacroEvent } from "@/lib/use-events";
+import { themeColors } from "@/lib/theme";
 
 type Props = {
   series: Series[];
@@ -211,7 +212,7 @@ export default function PairAnalysis({
       </div>
       <div className="panel correlation-panel">
         <div className="panel-header"><div><span className="panel-kicker">رابطه پویا</span><h3>همبستگی متحرک بازده</h3></div><span className="badge badge-accent">{formatNumber(windowSize)} مشاهده</span></div>
-        <Chart points={dynamic} color="#46ceb6" area={false} height={300} unit="ضریب همبستگی" domain={[-1, 1]} events={events} sharedDates={sharedDates} syncGroup="macro-relationships" />
+        <Chart points={dynamic} color={themeColors.positive} area={false} height={300} unit="ضریب همبستگی" domain={[-1, 1]} events={events} sharedDates={sharedDates} syncGroup="macro-relationships" />
         <div className="chart-footer">نقاطی که پنجره کامل ندارند نمایش داده نمی‌شوند؛ تعداد مشاهدات خام در کارت کناری آمده است.</div>
       </div>
       <div className="panel regime-panel">
@@ -222,12 +223,12 @@ export default function PairAnalysis({
       </div>
       {premium.length > 0 && <div className="panel small-chart">
         <div className="panel-header"><div><span className="panel-kicker">شکاف نرخ</span><h3>صرف تتر نسبت به {left.id === "usd-free" ? right.shortTitle : left.shortTitle}</h3></div><span className="badge">{formatNumber(premium.length)} تاریخ رسمی</span></div>
-        <Chart points={premium} color="#e2ae69" area={false} height={240} unit="٪" />
+        <Chart points={premium} color={themeColors.accent} area={false} height={240} unit="٪" />
         <p>در تاریخ هر مشاهده رسمی: (تتر پایانی ÷ نرخ رسمی − ۱) × ۱۰۰. فاصله تاریخ تتر حداکثر سه روز است؛ برای نرخ ماهانه، مقایسه با تتر نزدیک تاریخ مشاهده است، نه میانگین ماهانه تتر.</p>
       </div>}
       {goldBasis.length > 0 && <div className="panel small-chart">
         <div className="panel-header"><div><span className="panel-kicker">شکاف بازار طلا</span><h3>قیمت داخلی نسبت به ارزش نظری</h3></div><span className="badge">بر مبنای XAU/USD و USDT</span></div>
-        <Chart points={goldBasis} color="#d7a950" area={false} height={240} unit="٪" />
+        <Chart points={goldBasis} color={themeColors.gold} area={false} height={240} unit="٪" />
         <p>ارزش نظری هر گرم ۱۸ عیار از انس جهانی، دلار آزاد و عیار ۷۵٪ محاسبه شده؛ هزینه، مالیات و حاشیه بازار در آن نیست.</p>
       </div>}
       <div className="panel pair-event-panel">
