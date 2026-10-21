@@ -26,30 +26,6 @@ MONTHLY_SERIES: dict[str, dict[str, str | float | None]] = {
         "description": "سری قدیمی بازار غیررسمی؛ مقدار منبع ریال به تومان تبدیل شده است. بانک مرکزی روش برآورد را نمونه‌گیری ساعت ۱۱ اعلام کرده است.",
         "group_id": "currency", "unit": "تومان", "parent_id": "usd-free", "from_date": "13380101", "multiplier": 0.1,
     },
-    "usd-official-remittance-cbi": {
-        "category_id": "3505fc25-6687-8f09-e063-4ceaa8c0b336",
-        "title": "دلار رسمی · حواله (تاریخچه ماهانه بانک مرکزی)",
-        "description": "میانگین ماهانه نرخ رسمی حواله دلار در سری زمانی بانک مرکزی؛ مقدار منبع ریال به تومان تبدیل شده است.",
-        "group_id": "currency", "unit": "تومان", "parent_id": "usd-official", "from_date": "13970101", "multiplier": 0.1,
-    },
-    "usd-official-cash-cbi": {
-        "category_id": "3505fc25-668e-8f09-e063-4ceaa8c0b336",
-        "title": "دلار رسمی · اسکناس (تاریخچه ماهانه بانک مرکزی)",
-        "description": "میانگین ماهانه نرخ رسمی اسکناس دلار در سری زمانی بانک مرکزی؛ مقدار منبع ریال به تومان تبدیل شده است.",
-        "group_id": "currency", "unit": "تومان", "parent_id": "usd-official", "from_date": "13970101", "multiplier": 0.1,
-    },
-    "usd-official-weighted-cbi": {
-        "category_id": "3505fc25-6691-8f09-e063-4ceaa8c0b336",
-        "title": "دلار رسمی · میانگین موزون (بانک مرکزی)",
-        "description": "میانگین ماهانه نرخ موزون دلار در سری رسمی بانک مرکزی؛ مقدار منبع ریال به تومان تبدیل شده است.",
-        "group_id": "currency", "unit": "تومان", "parent_id": "usd-official", "from_date": "13970101", "multiplier": 0.1,
-    },
-    "usd-official-preferential-cbi": {
-        "category_id": "3505fc25-6684-8f09-e063-4ceaa8c0b336",
-        "title": "دلار ترجیحی · آرشیو بانک مرکزی",
-        "description": "سری تاریخی نرخ ترجیحی دلار؛ این نرخ تاریخی است و نرخ جاری بازار توافقی محسوب نمی‌شود. مقدار منبع ریال به تومان تبدیل شده است.",
-        "group_id": "currency", "unit": "تومان", "parent_id": "usd-official", "from_date": "13970101", "multiplier": 0.1,
-    },
     "cpi-ir-cbi": {
         "category_id": "3505fc25-6651-8f09-e063-4ceaa8c0b336",
         "title": "شاخص کل بهای کالاها و خدمات مصرفی · پایه ۱۴۰۰",

@@ -83,7 +83,7 @@ function normalizePair(left: Series, right: Series, displayMode: "synchronized" 
 }
 
 function currencyPremium(left: Series, right: Series): Point[] {
-  if (![left.id, right.id].includes("usd-free") || ![left.id, right.id].some((id) => id.startsWith("usd-official"))) return [];
+  if (![left.id, right.id].includes("usd-free") || ![left.id, right.id].includes("usd-official")) return [];
   const free = left.id === "usd-free" ? left : right;
   const official = left.id === "usd-official" ? left : right;
   return official.points.flatMap((point) => {
@@ -141,7 +141,7 @@ export default function PairAnalysis({
   const left = options.find((item) => item.id === leftId) ?? options[0];
   const right = options.find((item) => item.id === rightId && item.id !== left?.id)
     ?? options.find((item) => item.id !== left?.id) ?? left;
-  if (!left || !right) return <div className="empty-state">برای مقایسه هنوز سری داده‌ای موجود نیست.</div>;
+  if (!left || !right) return <div className="empty-state">برای این مقایسه دادهٔ کافی در دسترس نیست.</div>;
 
   const normalized = normalizePair(left, right, displayMode);
   const paired = alignedReturns(left.points, right.points, left.frequency, right.frequency);
@@ -178,8 +178,8 @@ export default function PairAnalysis({
     {showIntro && <div className="page-intro compact">
       <div>
         <div className="eyebrow"><span className="eyebrow-line" /> روابط متغیرها</div>
-        <h1>بازارها و شاخص‌ها<br /><em>در یک قاب زمانی.</em></h1>
-        <p>سطوح برای مقایسه از ۱۰۰ شروع می‌شوند؛ همبستگی بر پایه بازده‌های هم‌دوره محاسبه می‌شود.</p>
+        <h1>مقایسه بازارها</h1>
+        <p>بازده نسبی و همبستگی متحرک بازارها را در بازه‌های مختلف کنار هم ببینید.</p>
       </div>
     </div>}
     {showControls && <div className="compare-controls panel">
@@ -195,20 +195,20 @@ export default function PairAnalysis({
       </div>
     </div>}
     <div className="panel method-strip">
-      <span>{displayMode === "native" ? "در نمای تاریخ اصلی، سطح روزانه در تاریخ‌های تازه منتشرشده به‌صورت مقدار آخرِ در دسترس نشان داده می‌شود؛ تاریخ مشاهده اصلی در راهنما می‌آید." : "داده ماهانه و فصلی روی محور روزانه به شکل پله‌ای نمایش داده می‌شود؛ جزئیات نمودار تاریخ مشاهده اصلی را نشان می‌دهد."} همبستگی با بازده‌های {scaleLabel} محاسبه می‌شود؛ مقدارهای تکرارشده روزانه وارد محاسبه نمی‌شوند.</span>
+      <span>{displayMode === "native" ? "این نما فقط تاریخ‌هایی را نشان می‌دهد که هر شاخص مقدار تازه داشته است." : "در داده‌های ماهانه و فصلی، آخرین مقدار تا انتشار بعدی روی نمودار می‌ماند."} همبستگی با تاریخ‌های مشترک محاسبه می‌شود و مقدارهای تکراری وارد آن نمی‌شوند.</span>
     </div>
     <div className="detail-grid pair-detail-grid">
       <div className="panel chart-main pair-level-panel">
         <div className="panel-header"><div><span className="panel-kicker">مقایسه سطح</span><h3>{left.shortTitle} و {right.shortTitle}</h3></div><span className="badge badge-accent">شاخص‌شده · شروع ۱۰۰</span></div>
         <Chart points={normalized.left} color={left.color} comparison={{ points: normalized.right, name: right.shortTitle, color: right.color, step: normalized.stepRight }} step={normalized.stepLeft} area={false} height={350} unit="شاخص نسبی · ۱۰۰=شروع" events={events} sharedDates={sharedDates} syncGroup="macro-relationships" />
-        <div className="chart-footer">برای مقایسه اندازه‌های متفاوت، هر سری در نخستین تاریخ مشترک به ۱۰۰ تبدیل شده است.</div>
+        <div className="chart-footer">برای هم‌مقیاس‌کردن دو سری، مقدار هرکدام در نخستین تاریخ مشترک برابر ۱۰۰ در نظر گرفته شده است.</div>
       </div>
       <div className="panel pair-correlation-summary">
         <div><span className="panel-kicker">همبستگی نمونه · {scaleLabel}</span><strong className="correlation-number">{corr === null ? "—" : formatNumber(corr, 3)}</strong></div>
         <div><span>بازده‌های مشترک</span><strong>{formatNumber(paired.length)}</strong></div>
         <div><span>پنجره متحرک</span><strong>{formatNumber(windowSize)} مشاهده</strong></div>
         <div><span>نقطه‌های کامل همبستگی متحرک</span><strong>{formatNumber(corrWindow.length)}</strong></div>
-        <p>کمتر از ۳۰ مشاهده معمولاً برآورد ناپایداری می‌دهد؛ همبستگی رابطه علّی را اثبات نمی‌کند.</p>
+        <p>با کمتر از ۳۰ مشاهده، همبستگی ناپایدار است؛ همبستگی به‌تنهایی رابطهٔ علّی را نشان نمی‌دهد.</p>
       </div>
       <div className="panel correlation-panel">
         <div className="panel-header"><div><span className="panel-kicker">رابطه پویا</span><h3>همبستگی متحرک بازده</h3></div><span className="badge badge-accent">{formatNumber(windowSize)} مشاهده</span></div>
@@ -216,15 +216,15 @@ export default function PairAnalysis({
         <div className="chart-footer">نقاطی که پنجره کامل ندارند نمایش داده نمی‌شوند؛ تعداد مشاهدات خام در کارت کناری آمده است.</div>
       </div>
       <div className="panel regime-panel">
-        <div className="panel-header"><div><span className="panel-kicker">وضعیت مقایسه</span><h3>تواتر و پوشش</h3></div></div>
+        <div className="panel-header"><div><span className="panel-kicker">وضعیت مقایسه</span><h3>بازه و تعداد داده‌ها</h3></div></div>
         <div className="regime-block"><strong>{left.shortTitle}</strong><p>{frequencyLabel(left.frequency)} · {formatNumber(left.points.length)} مشاهده · {left.source}</p><small>{left.points.length ? `${formatDate(left.points[0].date)} تا ${formatDate(left.points.at(-1)!.date)}` : "بدون مشاهده"}</small></div>
         <div className="regime-block"><strong>{right.shortTitle}</strong><p>{frequencyLabel(right.frequency)} · {formatNumber(right.points.length)} مشاهده · {right.source}</p><small>{right.points.length ? `${formatDate(right.points[0].date)} تا ${formatDate(right.points.at(-1)!.date)}` : "بدون مشاهده"}</small></div>
-        <div className="panel-note">تاریخ دریافت به معنی انتشار داده تازه نیست؛ در مقایسه سری‌های متفاوت، آخرین مشاهده هر دو بازار را بررسی کنید.</div>
+        <div className="panel-note">تاریخ بارگیری، تاریخ انتشار آخرین مقدار نیست. تاریخ هر شاخص را در مشخصات بالا ببینید.</div>
       </div>
       {premium.length > 0 && <div className="panel small-chart">
-        <div className="panel-header"><div><span className="panel-kicker">شکاف نرخ</span><h3>صرف تتر نسبت به {left.id === "usd-free" ? right.shortTitle : left.shortTitle}</h3></div><span className="badge">{formatNumber(premium.length)} تاریخ رسمی</span></div>
+        <div className="panel-header"><div><span className="panel-kicker">شکاف نرخ</span><h3>صرف تتر نسبت به {left.id === "usd-free" ? right.shortTitle : left.shortTitle}</h3></div><span className="badge">{formatNumber(premium.length)} تاریخ ETS</span></div>
         <Chart points={premium} color={themeColors.accent} area={false} height={240} unit="٪" />
-        <p>در تاریخ هر مشاهده رسمی: (تتر پایانی ÷ نرخ رسمی − ۱) × ۱۰۰. فاصله تاریخ تتر حداکثر سه روز است؛ برای نرخ ماهانه، مقایسه با تتر نزدیک تاریخ مشاهده است، نه میانگین ماهانه تتر.</p>
+        <p>برای هر تاریخ انتشار نرخ فروش ETS، این اختلاف را حساب می‌کنیم: (قیمت پایانی تتر ÷ نرخ ETS − ۱) × ۱۰۰. نرخ تتر ممکن است تا سه روز قدیمی‌تر باشد و تاریخچهٔ ETS هنوز پیوسته نیست.</p>
       </div>}
       {goldBasis.length > 0 && <div className="panel small-chart">
         <div className="panel-header"><div><span className="panel-kicker">شکاف بازار طلا</span><h3>قیمت داخلی نسبت به ارزش نظری</h3></div><span className="badge">بر مبنای XAU/USD و USDT</span></div>
@@ -232,18 +232,18 @@ export default function PairAnalysis({
         <p>ارزش نظری هر گرم ۱۸ عیار از انس جهانی، دلار آزاد و عیار ۷۵٪ محاسبه شده؛ هزینه، مالیات و حاشیه بازار در آن نیست.</p>
       </div>}
       <div className="panel pair-event-panel">
-        <div className="panel-header"><div><span className="panel-kicker">نشانه‌های منبع‌دار</span><h3>رویدادهای منتشرشده در بازه</h3></div><span className="badge">{formatNumber(alignedEvents.length)} رویداد</span></div>
-        {eventsError ? <p className="event-panel-message" role="status">{eventsError}</p> : alignedEvents.length ? <ul className="pair-event-list">{alignedEvents.map((event) => <li key={event.id}><div><strong>{event.title}</strong><small>{formatDate(event.date)} · {event.category}{event.endsOn && event.endsOn !== event.date ? ` · تا ${formatDate(event.endsOn)}` : ""}</small></div>{event.source && <a href={event.source} target="_blank" rel="noreferrer">منبع</a>}</li>)}</ul> : <p className="event-panel-message">در این بازه رویداد منتشرشده‌ای ثبت نشده است.</p>}
-        <p className="panel-note">خط رویداد روی نخستین تاریخ مشاهده نمودار در همان روز یا پس از آن قرار می‌گیرد؛ تاریخ اصلی و منبع در این فهرست می‌ماند.</p>
+        <div className="panel-header"><div><span className="panel-kicker">رویدادهای مهم</span><h3>رویدادهای بازهٔ انتخاب‌شده</h3></div><span className="badge">{formatNumber(alignedEvents.length)} رویداد</span></div>
+        {eventsError ? <p className="event-panel-message" role="status">{eventsError}</p> : alignedEvents.length ? <ul className="pair-event-list">{alignedEvents.map((event) => <li key={event.id}><div><strong>{event.title}</strong><small>{formatDate(event.date)} · {event.category}{event.endsOn && event.endsOn !== event.date ? ` · تا ${formatDate(event.endsOn)}` : ""}</small></div>{event.source && <a href={event.source} target="_blank" rel="noreferrer">جزئیات</a>}</li>)}</ul> : <p className="event-panel-message">برای این بازه رویدادی ثبت نشده است.</p>}
+        <p className="panel-note">تاریخ رویداد در فهرست اصلی ثبت می‌شود؛ در نمودار، خط آن روی نزدیک‌ترین مشاهدهٔ بعدی قرار می‌گیرد.</p>
       </div>
     </div>
     <section className="panel volatility-regime-panel">
       <div className="panel-header"><div><span className="panel-kicker">رابطه مشروط</span><h3>هم‌حرکتی در وضعیت‌های نوسان {regimeDriver?.shortTitle ?? "متغیر منتخب"}</h3></div><span className="badge">بازده‌های {scaleLabel}</span></div>
       {regimeDriver && regimeComparisons.some((row) => row.regimes.length) ? <>
         <div className="table-scroll"><table className="risk-table"><thead><tr><th>آستانه پرنوسان</th><th>معمولی · n</th><th>همبستگی</th><th>پرنوسان · n</th><th>همبستگی</th></tr></thead><tbody>{regimeComparisons.map(({ multiplier, correlations: states }) => { const normal = states.find((item) => item.state === "normal")!; const high = states.find((item) => item.state === "high")!; return <tr key={multiplier}><th scope="row">{formatNumber(multiplier, 2)}× میانه گذشته</th><td>{formatNumber(normal.count)}</td><td>{normal.correlation === null ? "—" : formatNumber(normal.correlation, 3)}</td><td>{formatNumber(high.count)}</td><td>{high.correlation === null ? "—" : formatNumber(high.correlation, 3)}</td></tr>; })}</tbody></table></div>
-        <p className="panel-note">وضعیت پرنوسان وقتی ثبت می‌شود که نوسان تحقق‌یافته ۳۰ مشاهده‌ای از {formatNumber(1.5, 2)} برابر میانه ۶۰ برآورد کاملِ پیشین بیشتر شود؛ فقط گذشته وارد آستانه می‌شود. جدول حساسیت آستانه‌های ۱٫۲۵×، ۱٫۵× و ۲× را نشان می‌دهد. این طبقه‌بندی توصیفی است، برچسب بحران یا رابطه علّی نیست؛ شمارها هم‌پوشانی پنجره‌ها را حذف نمی‌کنند.</p>
-        {(regimeComparisons[1]?.correlations.some((item) => item.count < 30) ?? true) && <p className="event-panel-message">در دست‌کم یکی از وضعیت‌ها کمتر از ۳۰ بازده مشترک داریم؛ همبستگی آن وضعیت ناپایدار است.</p>}
-      </> : <p className="event-panel-message">برای محاسبه وضعیت نوسان، حداقل ۹۰ مشاهده روزانه معتبر از {regimeDriver?.shortTitle ?? "متغیر منتخب"} لازم است.</p>}
+        <p className="panel-note">وضعیت پرنوسان زمانی ثبت می‌شود که نوسان ۳۰ مشاهدهٔ اخیر از {formatNumber(1.5, 2)} برابر میانهٔ ۶۰ پنجرهٔ پیشین بیشتر باشد. جدول، نتیجه را با آستانه‌های ۱٫۲۵× و ۲× هم می‌سنجد. این برچسب توصیفی است و پنجره‌ها هم‌پوشانی دارند.</p>
+        {(regimeComparisons[1]?.correlations.some((item) => item.count < 30) ?? true) && <p className="event-panel-message">در یکی از دو وضعیت کمتر از ۳۰ بازده مشترک داریم؛ نتیجهٔ همبستگی در این نمونه ناپایدار است.</p>}
+      </> : <p className="event-panel-message">برای سنجش وضعیت نوسان {regimeDriver?.shortTitle ?? "متغیر منتخب"} دست‌کم ۹۰ مشاهدهٔ روزانهٔ معتبر لازم است.</p>}
     </section>
   </>;
 }

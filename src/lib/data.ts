@@ -8,18 +8,48 @@ export type Series = {
 };
 export const groups: Record<Group, string> = {
   markets: "شاخص‌های بورس", metals: "فلزات گران‌بها", currency: "ارز",
-  rates: "نرخ‌های بهره", money: "پول و نقدینگی", prices: "قیمت‌ها و تورم",
+  rates: "اوراق بدهی", money: "پول و بانکداری", prices: "قیمت‌ها و تورم",
 };
+export type CatalogDomain = {
+  id: string;
+  title: string;
+  description: string;
+  groups: readonly Group[];
+};
+export const catalogDomains: CatalogDomain[] = [
+  { id: "money", title: "پول و بانکداری", description: "نقدینگی، پایه پولی و عملیات بازار باز", groups: ["money"] },
+  { id: "markets", title: "بازارهای مالی", description: "شاخص‌های بورس، اوراق بدهی و فلزات گران‌بها", groups: ["markets", "rates", "metals"] },
+  { id: "external", title: "ارز و بخش خارجی", description: "دلار آزاد، نرخ‌های توافقی ETS و شاخص دلار حقیقی", groups: ["currency"] },
+  { id: "prices", title: "قیمت‌ها و تورم", description: "شاخص قیمت و نرخ تورم ایران و آمریکا", groups: ["prices"] },
+];
+export function catalogSubgroupFor(item: Pick<Series, "id" | "group" | "parent">): string {
+  if (item.group === "money") {
+    if (item.id.startsWith("base-")) return "پایه پولی";
+    if (item.id.startsWith("omo-")) return "عملیات بازار باز";
+    if (["liquidity-supply", "foreign-assets", "government-debt", "other-liquidity", "private-debt"].includes(item.id)) return "عوامل عرضه";
+    if (item.id === "liquidity" || item.parent === "liquidity") return "اجزای نقدینگی";
+    return "نقدینگی";
+  }
+  if (item.group === "markets") return "شاخص‌های بورس";
+  if (item.group === "rates") return "اوراق بدهی";
+  if (item.group === "metals") return "فلزات گران‌بها";
+  if (item.group === "currency") {
+    if (item.id === "usd-free") return "بازار آزاد";
+    if (item.id.startsWith("usd-official")) return "نرخ توافقی ETS";
+    return "دلار حقیقی";
+  }
+  return item.id.startsWith("cpi-us") ? "ایالات متحده" : "ایران";
+}
 export { seriesPalette as palette } from "./theme";
-export const featuredIds = ["tedpix", "equal", "usd-free", "gold", "gold-world", "yield", "liquidity", "base-money", "cpi-mom-cbi", "cpi-yoy-cbi", "usd-official-remittance-cbi", "omo-repo"];
+export const featuredIds = ["tedpix", "equal", "usd-free", "gold", "gold-world", "yield", "liquidity", "base-money", "cpi-mom-cbi", "cpi-yoy-cbi", "usd-official", "omo-repo"];
 export const riskIds = ["tedpix", "equal", "usd-free", "gold", "gold-world"];
 export const shortTitles: Record<string, string> = {
   tedpix: "شاخص کل", equal: "شاخص هم‌وزن", "usd-free": "دلار آزاد · تتر",
   gold: "طلای ۱۸ عیار", "gold-world": "انس جهانی طلا", yield: "بازده اخزا",
   "yield-history": "بازده تاریخی اخزا و سخاب", liquidity: "نقدینگی", money: "پول", quasi: "شبه‌پول",
   "base-money": "پایه پولی", "cpi-ir-cbi": "شاخص قیمت ایران", "cpi-mom-cbi": "تورم ماهانه ایران",
-  "cpi-yoy-cbi": "تورم نقطه‌ای ایران", "usd-official": "حواله دلار · فروش ETS",
-  "usd-official-buy": "حواله دلار · خرید ETS", "usd-official-remittance-cbi": "حواله دلار · ماهانه",
+  "cpi-yoy-cbi": "تورم نقطه‌ای ایران", "usd-official": "دلار حواله · ETS فروش",
+  "usd-official-buy": "دلار حواله · ETS خرید",
   "usd-real": "شاخص دلار حقیقی", "omo-repo": "عملیات بازار باز · ریپو",
   "cpi-us": "شاخص قیمت آمریکا", "cpi-us-mom": "تورم ماهانه آمریکا", "cpi-us-yoy": "تورم نقطه‌ای آمریکا",
 };

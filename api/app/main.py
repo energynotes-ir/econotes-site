@@ -35,7 +35,9 @@ def public_metadata(item: dict) -> dict:
 def public_series_filter() -> str:
     return """s.group_id != 'stocks'
         AND s.id NOT IN ('usd-free', 'usd-free-cbi-recent',
-                         'usd-free-cbi-history', 'interbank', 'reer')
+                         'usd-free-cbi-history', 'interbank', 'reer',
+                         'usd-official-remittance-cbi', 'usd-official-cash-cbi',
+                         'usd-official-weighted-cbi', 'usd-official-preferential-cbi')
         AND (s.group_id != 'markets' OR s.id IN ('tedpix', 'equal'))"""
 
 

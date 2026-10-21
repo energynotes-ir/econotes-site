@@ -56,7 +56,7 @@ export default function BondMarket() {
     let active = true;
     Promise.all([
       fetch(apiUrl("bonds")).then((response) => {
-        if (!response.ok) throw new Error("دریافت داده اوراق از API ناموفق بود.");
+        if (!response.ok) throw new Error("دادهٔ اوراق بارگذاری نشد.");
         return response.json() as Promise<Snapshot>;
       }),
       fetch(apiUrl("series/yield?limit=1000")).then(async (response) => {
@@ -74,7 +74,7 @@ export default function BondMarket() {
       setSnapshot(bondData);
       setHistory(points);
       setEstimatedHistory(estimates);
-      if (!bondData.bonds.length && !bondData.historical_bonds.length) setError("هنوز داده‌ای از فرابورس یا آرشیو TSETMC در پایگاه محلی ثبت نشده است.");
+      if (!bondData.bonds.length && !bondData.historical_bonds.length) setError("برای نمایش اوراق، داده‌ای در دسترس نیست.");
     }).catch((reason: unknown) => {
       if (active) setError(reason instanceof Error ? reason.message : "دریافت داده ناموفق بود.");
     }).finally(() => { if (active) setLoading(false); });
@@ -117,22 +117,22 @@ export default function BondMarket() {
   };
 
   return <>
-    <div className="page-intro compact bond-intro"><div><div className="eyebrow"><span className="eyebrow-line" /> بازار بدهی ایران</div><h1>منحنی بازده،<br /><em>ورقه به ورقه.</em></h1><p>بازده تا سررسید و قیمت آخرین معامله اوراق اخزا، سخاب و اوراق کوپنی را بررسی کنید. روی هر نقطه بروید تا نماد و تاریخ معامله را ببینید.</p></div><div className="bond-source"><Landmark size={20} /><span>منبع: فرابورس ایران · YTM</span></div></div>
+    <div className="page-intro compact bond-intro"><div><div className="eyebrow"><span className="eyebrow-line" /> بازار بدهی ایران</div><h1>بازده اوراق بدهی</h1><p>بازده و قیمت اوراق اخزا، سخاب و اوراق کوپنی را بر حسب سررسید مقایسه کنید. نماد و تاریخ معامله را با بردن نشانگر روی هر نقطه ببینید.</p></div><div className="bond-source"><Landmark size={20} /><span>فرابورس ایران · YTM</span></div></div>
 
-    {error && <div className={`panel bond-notice ${bonds.length ? "" : "bond-notice-warning"}`} role="status">{error} {bonds.length === 0 && <span>پس از اجرای API و واردکننده، داده اینجا ظاهر می‌شود.</span>}</div>}
+    {error && <div className={`panel bond-notice ${bonds.length ? "" : "bond-notice-warning"}`} role="status">{error}</div>}
 
     <div className="bond-summary-grid">
       <Summary label="میانگین بازده اخزا / سخاب" value={snapshot?.risk_free ? `${formatNumber(snapshot.risk_free.value, 2)}٪` : "—"} detail={snapshot?.risk_free ? `${formatNumber(snapshot.risk_free.count)} نماد · معامله ${formatDate(snapshot.risk_free.date)}` : "بدون مشاهده"} />
       <Summary label="اخزا و سخاب فعال" value={formatNumber(treasury.length)} detail={`${formatNumber(bonds.filter((bond) => bond.archived).length)} نماد دیگر در آرشیو معاملات`} />
       <Summary label="اوراق کوپنی فعال" value={formatNumber(bonds.filter((bond) => bond.bond_type === "coupon").length)} detail="آخرین YTM منتشرشده در صفحه منبع" />
-      <Summary label="زمان دریافت صفحه" value={snapshot?.snapshot_at ? new Date(snapshot.snapshot_at).toLocaleDateString("fa-IR") : "—"} detail={snapshot?.snapshot_at ? new Date(snapshot.snapshot_at).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) : loading ? "در حال دریافت" : "API محلی"} />
+      <Summary label="آخرین بارگیری داده" value={snapshot?.snapshot_at ? new Date(snapshot.snapshot_at).toLocaleDateString("fa-IR") : "—"} detail={snapshot?.snapshot_at ? new Date(snapshot.snapshot_at).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) : loading ? "در حال بارگیری" : "زمان ثبت نشده"} />
     </div>
 
     <div className="bond-chart-grid">
       <section className="panel bond-chart-panel"><div className="panel-header"><div><span className="panel-kicker">منحنی سررسید</span><h3>YTM اوراق اخزا و سخاب</h3></div><span className="badge badge-accent">درصد سالانه</span></div>{curve.length ? <Chart points={curve} color={themeColors.positive} type="scatter" area={false} height={315} unit="٪ سالانه" /> : <div className="bond-chart-empty">داده منحنی هنوز دریافت نشده است.</div>}<p className="bond-chart-caption">هر نقطه یک نماد است؛ محور افقی تاریخ سررسید و محور عمودی YTM است. تاریخ آخرین معامله نیز در راهنمای نقطه می‌آید.</p></section>
       <section className="panel bond-chart-panel"><div className="panel-header"><div><span className="panel-kicker">بازده ساده</span><h3>بازده تا سررسید ساده</h3></div><span className="badge">درصد</span></div>{simpleReturns.length ? <Chart points={simpleReturns} color={themeColors.accent} type="scatter" area={false} height={315} unit="٪" /> : <div className="bond-chart-empty">منبع برای این اوراق بازده ساده‌ای نداده است.</div>}<p className="bond-chart-caption">فقط برای اوراقی نمایش داده می‌شود که منبع، بازده ساده‌شان را منتشر کرده باشد.</p></section>
       <section className="panel bond-chart-panel"><div className="panel-header"><div><span className="panel-kicker">اوراق کوپنی</span><h3>YTM اوراق اراد و شرکتی</h3></div><span className="badge">{formatNumber(couponBonds.length)} نماد</span></div>{couponCurve.length ? <Chart points={couponCurve} color={themeColors.orange} type="scatter" area={false} height={315} unit="٪ سالانه" /> : <div className="bond-chart-empty">داده اوراق کوپنی هنوز دریافت نشده است.</div>}<p className="bond-chart-caption">هر نقطه نماینده یک نماد کوپنی است؛ نماد و تاریخ معامله در راهنمای نقطه مشخص‌اند.</p></section>
-      <section className="panel bond-chart-panel bond-history-panel"><div className="panel-header"><div><span className="panel-kicker">مشاهدات ذخیره‌شده از صفحه فرابورس</span><h3>YTM رسمی در تاریخ آخرین معامله نمادها</h3></div><span className="badge">{formatNumber(history.length)} مشاهده</span></div>{history.length ? <Chart points={history} color={themeColors.secondary} area={false} height={240} unit="٪ سالانه" /> : <div className="bond-chart-empty">تاریخچه رسمی پس از اولین واکشی ساخته می‌شود.</div>}<p className="bond-chart-caption">هر مقدار از صفحه زنده فرابورس گرفته شده و به تاریخ آخرین معامله‌ای که خود منبع اعلام کرده متصل است.</p></section>
+      <section className="panel bond-chart-panel bond-history-panel"><div className="panel-header"><div><span className="panel-kicker">تاریخچهٔ بازده اعلام‌شده</span><h3>YTM در تاریخ معاملهٔ هر نماد</h3></div><span className="badge">{formatNumber(history.length)} داده</span></div>{history.length ? <Chart points={history} color={themeColors.secondary} area={false} height={240} unit="٪ سالانه" /> : <div className="bond-chart-empty">تاریخچه‌ای برای نمایش نیست.</div>}<p className="bond-chart-caption">هر مقدار به تاریخ آخرین معامله‌ای وصل است که فرابورس برای نماد اعلام کرده است.</p></section>
       <section className="panel bond-chart-panel bond-history-panel"><div className="panel-header"><div><span className="panel-kicker">آرشیو روزانه TSETMC</span><h3>میانگین تاریخی YTM برآوردی اخزا و سخاب</h3></div><span className="badge badge-accent">{formatNumber(estimatedHistory.length)} روز معامله</span></div>{estimatedHistory.length ? <Chart points={estimatedHistory} color={themeColors.positive} area={false} height={260} unit="٪ سالانه" /> : <div className="bond-chart-empty">آرشیو معاملات اخزا و سخاب هنوز وارد نشده است.</div>}<p className="bond-chart-caption">از قیمت پایانی روزهای دارای معامله محاسبه شده: ارزش اسمی ۱٬۰۰۰٬۰۰۰ ریال و بازده مرکب سالانه با مبنای ۳۶۵ روز. با YTM رسمی فرابورس یکی نیست.</p></section>
     </div>
 

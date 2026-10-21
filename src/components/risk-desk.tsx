@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download } from "lucide-react";
+import { CircleHelp, Download } from "lucide-react";
 import Chart from "./chart";
 import { drawdownSpells, riskSummary, rollingRisk } from "@/lib/analytics";
 import { downloadCsv, formatDate, formatNumber, riskIds, type Series } from "@/lib/data";
@@ -86,7 +86,7 @@ export default function RiskDesk({
   });
   const active = rows.find((row) => row.item.id === selected) ?? rows[0];
   const comparison = rows.find((row) => row.item.id === comparisonId && row.item.id !== active?.item.id);
-  if (!active) return <div className="empty-state">برای محاسبه ریسک هنوز داده کافی دریافت نشده است.</div>;
+  if (!active) return <div className="empty-state">هنوز دادهٔ کافی برای سنجش ریسک این شاخص‌ها نداریم.</div>;
 
   const sharedDates = [...new Set([
     ...active.history.map((point) => point.date),
@@ -132,16 +132,16 @@ export default function RiskDesk({
       {showIntro && (
         <div className="page-intro compact">
           <div>
-            <div className="eyebrow"><span className="eyebrow-line" /> پایش ریسک بازار</div>
-            <h1>نوسان، زیان و<br /><em>زمان بازیابی</em></h1>
-            <p>چند سنجه تاریخی را برای هر بازار کنار هم ببینید؛ هیچ‌کدام به‌تنهایی پیش‌بینی ریزش نیستند.</p>
+            <div className="eyebrow"><span className="eyebrow-line" /> ریسک بازار</div>
+            <h1>ریسک در چند نما</h1>
+            <p>نوسان، افت از اوج و زمان بازیابی بازارهای منتخب را کنار هم ببینید.</p>
           </div>
         </div>
       )}
 
       <div className="panel risk-table-panel">
         <div className="panel-header">
-          <div><span className="panel-kicker">مقایسه بازارهای کلان</span><h3>دیدبان ریسک بازارها</h3></div>
+          <div><span className="panel-kicker">بازارهای منتخب</span><h3>سنجه‌های ریسک</h3></div>
           {!compact && <button className="outline-button" onClick={exportRows}><Download size={15} /> گزارش CSV</button>}
         </div>
         {showWindowControl && !compact && (
@@ -153,7 +153,7 @@ export default function RiskDesk({
                 </button>
               ))}
             </div>
-            <span className="muted">همه سنجه‌ها بر پایه بازده لگاریتمی و پنجره یکسان‌اند.</span>
+            <span className="muted">همهٔ سنجه‌ها از بازده لگاریتمی و یک پنجرهٔ زمانی یکسان استفاده می‌کنند.</span>
           </div>
         )}
         <div className="table-scroll">
@@ -199,7 +199,7 @@ export default function RiskDesk({
             </tbody>
           </table>
         </div>
-        <p className="panel-note">صدک نوسان از پنجره‌های کامل گذشته محاسبه می‌شود؛ دست‌کم ۶۰ پنجره لازم دارد. رتبه‌ها توصیفی‌اند و تاریخ بازارها می‌تواند متفاوت باشد.</p>
+        <p className="panel-note">صدک نوسان از پنجره‌های کامل گذشته به‌دست می‌آید و به دست‌کم ۶۰ پنجره نیاز دارد. رتبه‌ها توصیفی‌اند؛ تاریخ دادهٔ بازارها ممکن است یکسان نباشد.</p>
       </div>
 
       {!compact && (
@@ -216,7 +216,15 @@ export default function RiskDesk({
               <small>فقط بازده‌های زیر صفر؛ مخرج برابر کل پنجره است</small>
             </article>
             <article className="panel">
-              <span>VaR تاریخی ۹۵٪ / ES تاریخی ۹۵٪</span>
+              <div className="metric-title-with-help">
+                <span>VaR تاریخی ۹۵٪ / ES تاریخی ۹۵٪</span>
+                <details className="inline-help">
+                  <summary aria-label="تعریف VaR و ES"><CircleHelp size={14} aria-hidden="true" /></summary>
+                  <div className="inline-help-content" role="note">
+                    VaR برابر منفیِ صدک پنجم بازده‌هاست؛ ES منفیِ میانگین بازده‌های پایین‌تر از همان آستانه. مقدار منفی یعنی حتی این آستانه هم بازده مثبت بوده است.
+                  </div>
+                </details>
+              </div>
               <strong>{formatNumber(active.latestRisk?.historicalVaRPct ?? NaN, 2)}٪ / {formatNumber(active.latestRisk?.expectedShortfallPct ?? NaN, 2)}٪</strong>
               <small>دم شامل {formatNumber(active.latestRisk?.tailSampleCount ?? NaN)} بازده از {formatNumber(window)} مشاهده است</small>
             </article>
@@ -297,7 +305,7 @@ export default function RiskDesk({
             <p className="panel-note">مدت بر حسب فاصله مشاهده‌هاست، نه روز تقویمی. قیمت نامعتبر دوره جاری را سانسور می‌کند؛ بازیابی در شکاف داده فرض نمی‌شود.</p>
           </div>
 
-          <div className="panel method-strip">نوسان و نیم‌انحراف، درصد به‌ازای هر بازده مشاهده‌شده‌اند؛ VaR و ES از دم تاریخی پنجره به‌دست می‌آیند. این سنجه‌ها زیان آینده را پیش‌بینی نمی‌کنند. افت شاخص نیز افت قیمت یک سبد واقعی را به‌تنهایی نشان نمی‌دهد.</div>
+          <div className="panel method-strip">این سنجه‌ها خلاصه‌ای از رفتار تاریخی شاخص‌ها هستند. زیان یک سبد واقعی می‌تواند با افت شاخص تفاوت داشته باشد.</div>
         </>
       )}
     </section>

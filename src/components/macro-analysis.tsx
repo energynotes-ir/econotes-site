@@ -7,13 +7,12 @@ import ScenarioDesk from "./scenario-desk";
 import { formatNumber, periodPoints, riskIds, type Series } from "@/lib/data";
 import { useEvents } from "@/lib/use-events";
 
-export type MacroAnalysisSubview = "risk" | "relationships" | "scenario" | "validation";
+export type MacroAnalysisSubview = "risk" | "relationships" | "scenario";
 
 const subviews: { id: MacroAnalysisSubview; label: string }[] = [
-  { id: "risk", label: "ریسک بازار" },
-  { id: "relationships", label: "روابط و هم‌حرکتی" },
+  { id: "risk", label: "ریسک" },
+  { id: "relationships", label: "همبستگی" },
   { id: "scenario", label: "سناریو" },
-  { id: "validation", label: "اعتبارسنجی پیش‌بینی" },
 ];
 
 const windows = [30, 60, 120];
@@ -62,12 +61,11 @@ export default function MacroAnalysis({
   const scenarioDriver = marketOptions.find((item) => item.id === analysisComparisonId && item.id !== scenarioTarget?.id)
     ?? marketOptions.find((item) => item.id !== scenarioTarget?.id);
 
-  const showSeriesControls = subview === "risk" || subview === "relationships" || subview === "scenario";
   const leftOptions = subview === "relationships" ? relationshipOptions : marketOptions;
   const currentLeftId = subview === "relationships" ? pairLeft?.id : subview === "scenario" ? scenarioTarget?.id : riskLeft?.id;
   const currentRightId = subview === "relationships" ? pairRight?.id : subview === "scenario" ? scenarioDriver?.id : riskRight?.id;
-  const leftLabel = subview === "scenario" ? "بازار هدف" : "متغیر اصلی";
-  const rightLabel = subview === "scenario" ? "متغیر شوک" : "مقایسه با";
+  const leftLabel = subview === "scenario" ? "شاخص هدف" : "شاخص اصلی";
+  const rightLabel = subview === "scenario" ? "متغیر محرک" : "مقایسه با";
   const updateLeft = (value: string) => {
     if (subview === "relationships") {
       setPairLeftId(value);
@@ -88,12 +86,12 @@ export default function MacroAnalysis({
   };
 
   return (
-    <section className="macro-analysis" aria-label="فضای تحلیل کلان">
+    <section className="macro-analysis" aria-label="تحلیل کلان">
       <div className="page-intro compact macro-analysis-intro">
         <div>
-          <div className="eyebrow"><span className="eyebrow-line" /> فضای تحلیل کلان</div>
-          <h1>ریسک و روابط بازار،<br /><em>با سنجه‌های روشن.</em></h1>
-          <p>بازه و پنجرهٔ مشترک را میان سنجه‌های ریسک، هم‌حرکتی و حساسیت تاریخی حفظ کنید. خروجی‌های سناریو توصیفی‌اند و پیش‌بینی معتبر محسوب نمی‌شوند.</p>
+          <div className="eyebrow"><span className="eyebrow-line" /> تحلیل کلان</div>
+          <h1>ریسک و رابطهٔ بازارها</h1>
+          <p>ریسک بازارها را بسنجید، همبستگی‌شان با متغیرهای کلان را ببینید و سناریوها را بر پایهٔ رابطهٔ تاریخی بررسی کنید.</p>
         </div>
       </div>
 
@@ -107,27 +105,23 @@ export default function MacroAnalysis({
 
       <div className="panel macro-analysis-controls">
         <div className="macro-control-period">
-          <span className="macro-control-label">بازه مشترک</span>
-          <div className="period-tabs" aria-label="بازه مشترک تحلیل">
+          <span className="macro-control-label">بازهٔ زمانی</span>
+          <div className="period-tabs" aria-label="دورهٔ تحلیل">
             {([3, 12, null] as const).map((value) => (
               <button key={String(value)} type="button" className={months === value ? "selected" : ""} onClick={() => setMonths(value)}>
-                {value === null ? "تمام دوره" : `${formatNumber(value)} ماه`}
+                {value === null ? "کل تاریخچه" : `${formatNumber(value)} ماه`}
               </button>
             ))}
           </div>
         </div>
-        {showSeriesControls && (
-          <>
-            <div><label htmlFor="macro-primary">{leftLabel}</label><div className="select-wrap"><select id="macro-primary" value={currentLeftId ?? ""} onChange={(event) => updateLeft(event.target.value)}>{leftOptions.map((item) => <option key={item.id} value={item.id}>{item.shortTitle}</option>)}</select></div></div>
-            <div><label htmlFor="macro-secondary">{rightLabel}</label><div className="select-wrap"><select id="macro-secondary" value={currentRightId ?? ""} onChange={(event) => updateRight(event.target.value)}>{leftOptions.filter((item) => item.id !== currentLeftId).map((item) => <option key={item.id} value={item.id}>{item.shortTitle}</option>)}</select></div></div>
-            <div className="macro-window-control"><span className="macro-control-label">پنجره مشترک</span><div className="period-tabs" aria-label="پنجره مشترک تحلیل">{windows.map((value) => <button key={value} type="button" className={windowSize === value ? "selected" : ""} onClick={() => setWindowSize(value)}>{formatNumber(value)}</button>)}</div></div>
-          </>
-        )}
+        <div><label htmlFor="macro-primary">{leftLabel}</label><div className="select-wrap"><select id="macro-primary" value={currentLeftId ?? ""} onChange={(event) => updateLeft(event.target.value)}>{leftOptions.map((item) => <option key={item.id} value={item.id}>{item.shortTitle}</option>)}</select></div></div>
+        <div><label htmlFor="macro-secondary">{rightLabel}</label><div className="select-wrap"><select id="macro-secondary" value={currentRightId ?? ""} onChange={(event) => updateRight(event.target.value)}>{leftOptions.filter((item) => item.id !== currentLeftId).map((item) => <option key={item.id} value={item.id}>{item.shortTitle}</option>)}</select></div></div>
+        <div className="macro-window-control"><span className="macro-control-label">{subview === "relationships" ? "پنجرهٔ همبستگی" : "پنجرهٔ محاسبه"}</span><div className="period-tabs" aria-label="پنجرهٔ محاسبه">{windows.map((value) => <button key={value} type="button" className={windowSize === value ? "selected" : ""} onClick={() => setWindowSize(value)}>{formatNumber(value)}</button>)}</div></div>
         {subview === "relationships" && (
           <>
-            <div><label htmlFor="macro-regime-driver">متغیر تعریف وضعیت نوسان</label><div className="select-wrap"><select id="macro-regime-driver" value={market(regimeDriverId)?.id ?? ""} onChange={(event) => setRegimeDriverId(event.target.value)}>{marketOptions.map((item) => <option key={item.id} value={item.id}>{item.shortTitle}</option>)}</select></div></div>
+            <div><label htmlFor="macro-regime-driver">شاخص سنجش نوسان</label><div className="select-wrap"><select id="macro-regime-driver" value={market(regimeDriverId)?.id ?? ""} onChange={(event) => setRegimeDriverId(event.target.value)}>{marketOptions.map((item) => <option key={item.id} value={item.id}>{item.shortTitle}</option>)}</select></div></div>
             <div className="macro-frequency-control">
-              <span className="macro-control-label">نمای تاریخ</span>
+              <span className="macro-control-label">تاریخ نمودار</span>
               <div className="period-tabs" aria-label="نمای تاریخ نمودار">
                 <button type="button" className={displayMode === "synchronized" ? "selected" : ""} onClick={() => setDisplayMode("synchronized")}>هم‌زمان</button>
                 <button type="button" className={displayMode === "native" ? "selected" : ""} onClick={() => setDisplayMode("native")}>تاریخ‌های اصلی</button>
@@ -135,7 +129,6 @@ export default function MacroAnalysis({
             </div>
           </>
         )}
-        <div className="macro-horizon-lock"><span>افق پیش‌بینی</span><strong>تا تأیید قرارداد و ارزیابی تاریخی غیرفعال</strong></div>
       </div>
 
       {subview === "risk" && riskLeft && (
@@ -187,16 +180,6 @@ export default function MacroAnalysis({
           showIntro={false}
           showControls={false}
         />
-      )}
-      {subview === "validation" && (
-        <article className="panel forecast-validation-pending">
-          <span className="panel-kicker">وضعیت مدل</span>
-          <h2>هنوز پیش‌بینی معتبر منتشر نشده است</h2>
-          <p>تعریف هدف، افق، اطلاعات مجاز و معیارهای ارزیابی آماده بررسی است. تا تأیید این قرارداد و عبور از ارزیابی زمانی، هیچ خروجی مدل به‌عنوان پیش‌بینی نمایش داده نمی‌شود.</p>
-          <div className="validation-status-row"><span>وضعیت قرارداد</span><strong>در انتظار تأیید</strong></div>
-          <div className="validation-status-row"><span>آموزش یا تنظیم مدل</span><strong>شروع نشده</strong></div>
-          <div className="validation-status-row"><span>خط مبنای مقایسه</span><strong>قبل از ارزیابی نهایی تثبیت می‌شود</strong></div>
-        </article>
       )}
     </section>
   );

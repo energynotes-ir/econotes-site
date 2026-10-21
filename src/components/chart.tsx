@@ -44,11 +44,34 @@ export default function Chart({ points, color = themeColors.primary, height = 30
   const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
   const option: EChartsOption = {
     animation: false,
-    grid: mini ? { left: 1, right: 1, top: 3, bottom: 1 } : { left: 68, right: 22, top: 24, bottom: 76 },
-    dataZoom: mini ? undefined : [
-      { type: "inside", filterMode: "none", zoomOnMouseWheel: false, moveOnMouseWheel: false },
-      { type: "slider", height: 18, bottom: 7, borderColor: themeColors.border, backgroundColor: "#F1F5F9", fillerColor: "#1E40AF24", handleStyle: { color: themeColors.primary }, textStyle: { color: themeColors.muted, fontFamily: "Vazirmatn" }, labelFormatter: (value: unknown) => { const index = Number(value); return dates[index] ? formatDate(dates[index]) : ""; } },
-    ],
+    grid: mini ? { left: 1, right: 1, top: 3, bottom: 1 } : { left: 68, right: 22, top: 24, bottom: 68 },
+    dataZoom: !mini && dates.length > 1 ? [
+      {
+        type: "inside", filterMode: "none", zoomOnMouseWheel: false,
+        moveOnMouseWheel: false, moveOnMouseMove: true,
+      },
+      {
+        type: "slider", filterMode: "none", height: 16, bottom: 10,
+        backgroundColor: "#EEF2F7", borderColor: "transparent", borderRadius: 7,
+        fillerColor: "#3B82F61A", showDataShadow: true, showDetail: false,
+        brushSelect: false, moveHandleSize: 0,
+        dataBackground: {
+          lineStyle: { color: "#94A3B8", width: 1, opacity: 0.35 },
+          areaStyle: { color: "#CBD5E1", opacity: 0.35 },
+        },
+        selectedDataBackground: {
+          lineStyle: { color: "#3B82F6", width: 1, opacity: 0.65 },
+          areaStyle: { color: "#BFDBFE", opacity: 0.5 },
+        },
+        handleIcon: "path://M8 0A8 8 0 1 0 8 16A8 8 0 1 0 8 0Z",
+        handleSize: 20,
+        handleStyle: {
+          color: "#FFFFFF", borderColor: "#2563EB", borderWidth: 1.5,
+          shadowBlur: 4, shadowColor: "#1E40AF30", shadowOffsetY: 1,
+        },
+        emphasis: { handleStyle: { color: "#FFFFFF", borderColor: "#1D4ED8", borderWidth: 2, shadowBlur: 6, shadowColor: "#1E40AF40" } },
+      },
+    ] : undefined,
     tooltip: mini ? { show: false } : {
       trigger: "axis", confine: true, backgroundColor: "#FFFFFF", borderColor: themeColors.border, textStyle: { color: themeColors.text, fontFamily: "Vazirmatn", fontSize: 12 },
       axisPointer: { type: "cross", lineStyle: { color: "#94A3B8", type: "dashed" } },
@@ -140,5 +163,7 @@ export default function Chart({ points, color = themeColors.primary, height = 30
     datazoom: (event: unknown) => syncEvent("datazoom", event),
     updateAxisPointer: (event: unknown) => syncEvent("updateAxisPointer", event),
   } : undefined;
-  return <div role={mini ? undefined : "img"} aria-label={mini ? undefined : `نمودار ${unit}؛ ${formatDate(dates[0])} تا ${formatDate(dates.at(-1)!)}`}><ReactECharts option={option} notMerge lazyUpdate onChartReady={onChartReady} onEvents={onEvents} style={{ height, width: "100%" }} /></div>;
+  return <>
+    <div role={mini ? undefined : "img"} aria-label={mini ? undefined : `نمودار ${unit}؛ ${formatDate(dates[0])} تا ${formatDate(dates.at(-1)!)}`}><ReactECharts option={option} notMerge lazyUpdate onChartReady={onChartReady} onEvents={onEvents} style={{ height, width: "100%" }} /></div>
+  </>;
 }
