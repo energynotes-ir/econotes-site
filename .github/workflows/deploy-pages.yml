@@ -29,15 +29,59 @@ jobs:
         run: npm run build:static
         env:
           NEXT_PUBLIC_STATIC_DATA_BASE_URL: "https://raw.githubusercontent.com/energynotes-ir/econotes-site/main/public/data/api/v1"
+          NEXT_PUBLIC_ASSET_PREFIX: "https://raw.githubusercontent.com/energynotes-ir/econotes-site/cdn-assets/${{ github.sha }}"
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./out
+      - name: Upload immutable CDN assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdn-assets-${{ github.sha }}
+          path: ./out/_next/static/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-cdn-assets:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Download immutable CDN assets
+        uses: actions/download-artifact@v4
+        with:
+          name: cdn-assets-${{ github.sha }}
+          path: ${{ runner.temp }}/cdn-static
+      - name: Publish assets to the CDN branch
+        env:
+          BUILD_SHA: ${{ github.sha }}
+          CDN_SOURCE: ${{ runner.temp }}/cdn-static
+        run: |
+          if git ls-remote --exit-code --heads origin cdn-assets >/dev/null 2>&1; then
+            git fetch origin refs/heads/cdn-assets:refs/remotes/origin/cdn-assets
+            git switch --create cdn-assets --track origin/cdn-assets
+          else
+            git switch --orphan cdn-assets
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p "$BUILD_SHA/_next/static"
+          cp -R "$CDN_SOURCE/." "$BUILD_SHA/_next/static/"
+          git add "$BUILD_SHA/_next/static"
+          if git diff --cached --quiet; then
+            echo "CDN assets already published for $BUILD_SHA"
+            exit 0
+          fi
+          git commit -m "Publish static assets for $BUILD_SHA"
+          git push origin HEAD:cdn-assets
 
   deploy:
-    needs: build
+    needs: [build, publish-cdn-assets]
     runs-on: ubuntu-latest
     permissions:
       pages: write
