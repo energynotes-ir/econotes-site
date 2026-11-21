@@ -59,7 +59,7 @@ export const sources: Record<string, string> = {
   "cbi-ets": "بانک مرکزی · ETS", "ifb-ytm": "فرابورس · YTM",
   "ifb-ytm-history": "TSETMC · بازده محاسبه‌شده", "oecd-us-cpi": "OECD · CPI آمریکا",
   "mefa-monetary": "وزارت اقتصاد · بازنشر داده‌های بانک مرکزی",
-  "derived-real-fx": "EcoNotes · والکس، CBI و OECD", "ibena-omo": "ایبنا · عملیات بازار باز",
+  "derived-real-fx": "EcoNotes · والکس، CBI و OECD", "ibena-omo": "بانک مرکزی · گزارش عملیات بازار باز",
 };
 export const last = (s: Series) => s.points.at(-1)?.value ?? NaN;
 export const change = (s: Series) => {

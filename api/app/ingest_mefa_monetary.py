@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -24,6 +25,7 @@ SOURCE_ID = "mefa-monetary"
 URL = "https://databank.mefa.ir/data"
 SOURCE_UNIT = "میلیارد ریال"
 NORMALIZATION_FACTOR = Decimal("1000")
+log = logging.getLogger(__name__)
 
 # MEFA indicator IDs and the corresponding row titles in its published table.
 # TSD factor rows with no figures on the MEFA page are intentionally retained
@@ -224,17 +226,24 @@ def _validate_recent_identities(parsed: dict[str, list[dict]]) -> None:
 def fetch_mefa_rows() -> tuple[dict[str, list[dict]], dict[str, tuple[str, str]]]:
     session = requests.Session()
     session.headers.update({"User-Agent": "EcoNotes/0.4 (local macroeconomic research)", "Accept-Language": "fa"})
-    direct_liquidity = parse_cbi_liquidity_rows(fetch_cbi_liquidity_rows())
     date_overrides: dict[str, tuple[str, str]] = {}
-    for row in direct_liquidity["liquidity"]:
-        jalali = row["jalali"]
-        year, month = int(jalali[:4]), int(jalali[4:6])
-        season = (month - 1) // 3 + 1
-        label = f"{year} {('بهار', 'تابستان', 'پاییز', 'زمستان')[season - 1]}"
-        date_pair = (row["date"], jalali)
-        if label in date_overrides and date_overrides[label] != date_pair:
-            raise ValueError(f"CBI supplied conflicting quarterly dates for {label}")
-        date_overrides[label] = date_pair
+    try:
+        direct_liquidity = parse_cbi_liquidity_rows(fetch_cbi_liquidity_rows())
+    except requests.exceptions.RequestException as exc:
+        # MEFA republishes the CBI monetary tables with explicit Persian quarter
+        # labels. Keep those valid observations flowing if the separate TSD API
+        # is unavailable, while leaving the direct TSD ingestion to retry itself.
+        log.warning("CBI TSD date lookup unavailable; using MEFA quarter labels: %s", exc)
+    else:
+        for row in direct_liquidity["liquidity"]:
+            jalali = row["jalali"]
+            year, month = int(jalali[:4]), int(jalali[4:6])
+            season = (month - 1) // 3 + 1
+            label = f"{year} {('بهار', 'تابستان', 'پاییز', 'زمستان')[season - 1]}"
+            date_pair = (row["date"], jalali)
+            if label in date_overrides and date_overrides[label] != date_pair:
+                raise ValueError(f"CBI supplied conflicting quarterly dates for {label}")
+            date_overrides[label] = date_pair
     response = session.get(URL, params={
         "from": "1352001", "to": "1410004", "f": "2", "d": "2",
         "indicators": ",".join(str(value[0]) for value in MEFA_ROWS.values()),

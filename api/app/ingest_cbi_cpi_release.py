@@ -28,6 +28,8 @@ _HEADLINES = (
      "published_on": (1405, 6, 5), "source_record_id": "cbi-release-1405-05"},
     {"jalali_month": (1405, 6), "m2m": 3.9, "yoy": 83.8,
      "published_on": (1405, 7, 4), "source_record_id": "cbi-release-36185"},
+    {"jalali_month": (1405, 7), "m2m": 4.6, "yoy": 83.5,
+     "published_on": (1405, 8, 19), "source_record_id": "cbi-release-36735"},
 )
 
 

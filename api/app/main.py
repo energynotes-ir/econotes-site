@@ -75,15 +75,18 @@ def dashboard_data(limit: int = Query(20000, ge=1, le=20000)) -> dict:
             return {"items": []}
         placeholders = ",".join("?" for _ in ids)
         rows = connection.execute(
-            f"""SELECT series_id AS id, observed_on AS date, value, symbol, published_at,
-                       source_record_id FROM observations WHERE series_id IN ({placeholders})
+            f"""SELECT series_id AS id, observed_on AS date, value, symbol
+                FROM observations WHERE series_id IN ({placeholders})
                 ORDER BY series_id,observed_on DESC""", ids,
         ).fetchall()
     grouped: dict[str, list[dict]] = {series_id: [] for series_id in ids}
     for row in rows:
         group = grouped[row["id"]]
         if len(group) < limit:
-            group.append({key: value for key, value in dict(row).items() if key != "id"})
+            point = {"date": row["date"], "value": row["value"]}
+            if row["symbol"] is not None:
+                point["symbol"] = row["symbol"]
+            group.append(point)
     items = []
     for item in metadata:
         data = encode(item)

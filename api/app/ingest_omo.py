@@ -19,7 +19,7 @@ from persiantools.jdatetime import JalaliDate
 from .db import database
 
 SOURCE_ID = "ibena-omo"
-SITEMAP_INDEX = "https://www.ibena.ir/fa-sitemap-newsarchive"
+SITEMAP_INDEX = "https://www.ibena.ir/sitemap/all/sitemap.xml"
 BASE_URL = "https://www.ibena.ir"
 ARCHIVE_START_YEAR = 1398
 TEHRAN = ZoneInfo("Asia/Tehran")
@@ -44,6 +44,32 @@ METRICS = {
         "description": "مبلغ خرید قطعی اوراق اعلام‌شده در گزارش هفتگی عملیات بازار باز؛ به همت تبدیل شده است. مقدار ثبت‌نشده در گزارش خالی می‌ماند.",
     },
 }
+
+# A small number of recent CBI operation reports were not present in IBENA's
+# daily sitemap when this importer ran. These explicitly identified releases
+# are mirrored by financial news outlets and cite the CBI report. Keep their
+# own report dates, source URLs, and publication dates so the series remains
+# traceable and a later IBENA record can supersede a mirror if it is published.
+MIRRORED_REPORTS = (
+    {
+        "jalali_date": (1405, 8, 11),
+        "repo": 166.41,
+        "source_url": "https://www.magiran.com/article/4715767",
+        "published_at": "2026-11-12T00:00:00+00:00",
+    },
+    {
+        "jalali_date": (1405, 8, 18),
+        "repo": 334.49,
+        "source_url": "https://vista.ir/2611/259/m4p87/%DA%AF%D8%B2%D8%A7%D8%B1%D8%B4-%D8%B9%D9%85%D9%84%DB%8C%D8%A7%D8%AA-%D8%A7%D8%AC%D8%B1%D8%A7%DB%8C%DB%8C-%D8%B3%DB%8C%D8%A7%D8%B3%D8%AA-%D9%BE%D9%88%D9%84%DB%8C",
+        "published_at": "2026-11-09T00:00:00+00:00",
+    },
+    {
+        "jalali_date": (1405, 8, 25),
+        "repo": 261.98,
+        "source_url": "https://www.tgju.org/news/3991364/%D8%A8%D8%A7%D9%86%DA%A9-%D9%85%D8%B1%DA%A9%D8%B2%DB%8C-%DB%B2%DB%B6%DB%B2-%D9%87%D9%85%D8%AA-%D8%B3%D9%81%D8%A7%D8%B1%D8%B4-%D8%B1%DB%8C%D9%BE%D9%88-%D8%A7%D8%B2-%DB%B1%DB%B8-%D8%A8%D8%A7%D9%86%DA%A9-%D9%BE%D8%B0%DB%8C%D8%B1%D9%81%D8%AA",
+        "published_at": "2026-11-16T12:41:00+00:00",
+    },
+)
 
 _DIGIT_TRANSLATION = str.maketrans(
     "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"
@@ -81,6 +107,53 @@ class _JsonLdParser(HTMLParser):
             self._inside = False
 
 
+class _MicrodataArticleParser(HTMLParser):
+    """Read IBENA's articleBody microdata when its JSON-LD is absent."""
+
+    VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+    BLOCK_TAGS = {"br", "div", "li", "p", "td", "th", "tr"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.body_depth = 0
+        self.body_parts: list[str] = []
+        self.headline = ""
+        self.published_at = ""
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        attributes = dict(attrs)
+        itemprop = (attributes.get("itemprop") or "").split()
+        if "headline" in itemprop and not self.headline:
+            self.headline = attributes.get("content") or ""
+        if "datePublished" in itemprop and not self.published_at:
+            self.published_at = attributes.get("content") or attributes.get("datetime") or ""
+
+        if "articleBody" in itemprop and self.body_depth == 0:
+            self.body_depth = 1
+        elif self.body_depth and tag not in self.VOID_TAGS:
+            self.body_depth += 1
+        if self.body_depth and tag in self.BLOCK_TAGS:
+            self.body_parts.append(" ")
+
+    def handle_data(self, data: str) -> None:
+        if self.body_depth:
+            self.body_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if not self.body_depth:
+            return
+        if tag in self.BLOCK_TAGS:
+            self.body_parts.append(" ")
+        if tag not in self.VOID_TAGS:
+            self.body_depth -= 1
+
+    def article(self) -> dict | None:
+        body = " ".join("".join(self.body_parts).split())
+        if not body:
+            return None
+        return {"articleBody": body, "headline": self.headline, "datePublished": self.published_at}
+
+
 def _normalize_text(value: str) -> str:
     return (
         value.translate(_DIGIT_TRANSLATION)
@@ -116,7 +189,12 @@ def extract_news_article(document: str) -> dict:
             article = articles[0]
             if article.get("articleBody"):
                 return article
-    raise ValueError("IBENA page has no NewsArticle JSON-LD body")
+    microdata = _MicrodataArticleParser()
+    microdata.feed(document)
+    article = microdata.article()
+    if article:
+        return article
+    raise ValueError("IBENA page has no NewsArticle body in JSON-LD or microdata")
 
 
 def _operation_date(body: str, title: str, published_at: str) -> tuple[str, str]:
@@ -216,13 +294,13 @@ def _xml_locs(payload: bytes) -> list[str]:
     return [element.text.strip() for element in root.iter() if element.tag.endswith("loc") and element.text]
 
 
-def _jalali_month_keys(today: datetime) -> set[str]:
+def _jalali_month_keys(today: datetime) -> set[tuple[int, int]]:
     jalali = JalaliDate.to_jalali(today.year, today.month, today.day)
     month_number = jalali.year * 12 + jalali.month - 1
-    keys = set()
+    keys: set[tuple[int, int]] = set()
     for offset in range(3):
         year, month_zero = divmod(month_number - offset, 12)
-        keys.add(f"-{year}-{month_zero + 1}-")
+        keys.add((year, month_zero + 1))
     return keys
 
 
@@ -237,19 +315,16 @@ def discover_report_urls(*, bootstrap: bool, now: datetime | None = None) -> lis
     })
     response.raise_for_status()
     sitemap_urls = _xml_locs(response.content)
+    daily_sitemap = re.compile(r"/sitemap/(14\d{2})/(\d{1,2})/\d{1,2}/sitemap\.xml$")
     if bootstrap:
-        sitemap_urls = [
-            url for url in sitemap_urls
-            if "fa-sitemap-newsarchive-" in url
-            and re.search(r"fa-sitemap-newsarchive-14\d{2}-", url)
-            and int(re.search(r"fa-sitemap-newsarchive-(\d{4})-", url).group(1)) >= ARCHIVE_START_YEAR
-        ]
+        sitemap_urls = [url for url in sitemap_urls
+                        if (match := daily_sitemap.search(url))
+                        and int(match.group(1)) >= ARCHIVE_START_YEAR]
     else:
         month_keys = _jalali_month_keys(now or datetime.now(TEHRAN))
-        sitemap_urls = [
-            url for url in sitemap_urls
-            if "fa-sitemap-newsarchive-" in url and any(key in url for key in month_keys)
-        ]
+        sitemap_urls = [url for url in sitemap_urls
+                        if (match := daily_sitemap.search(url))
+                        and (int(match.group(1)), int(match.group(2))) in month_keys]
     if not sitemap_urls:
         raise ValueError("IBENA sitemap has no relevant news archive pages")
 
@@ -289,8 +364,8 @@ def import_omo() -> dict:
             """INSERT INTO sources (id, name, homepage, retrieval_method) VALUES (?, ?, ?, ?)
                ON CONFLICT(id) DO UPDATE SET name=excluded.name, homepage=excluded.homepage,
                  retrieval_method=excluded.retrieval_method""",
-            (SOURCE_ID, "ایبنا · گزارش‌های عملیات اجرایی سیاست پولی", BASE_URL,
-             "Public IBENA news-archive sitemaps and NewsArticle JSON-LD"),
+            (SOURCE_ID, "بانک مرکزی · گزارش‌های عملیات بازار باز", BASE_URL,
+             "IBENA daily sitemap plus explicitly linked financial-news mirrors of CBI reports"),
         )
         run_id = connection.execute(
             "INSERT INTO ingestion_runs (source_id, started_at, status) VALUES (?, ?, 'running')",
@@ -310,6 +385,15 @@ def import_omo() -> dict:
         new_urls = [url for url in urls if url not in known_urls]
         with ThreadPoolExecutor(max_workers=8) as pool:
             parsed_articles = list(pool.map(fetch_article, new_urls))
+        for report in MIRRORED_REPORTS:
+            year, month, day = report["jalali_date"]
+            observed_on = JalaliDate(year, month, day).to_gregorian().isoformat()
+            parsed_articles.append({
+                "url": report["source_url"],
+                "date": observed_on,
+                "published_at": report["published_at"],
+                "metrics": {"omo-repo": report["repo"]},
+            })
 
         # If multiple reports cover the same operation date, keep the latest
         # published report for each metric rather than adding potentially
@@ -354,9 +438,14 @@ def import_omo() -> dict:
                        rows_received=?, rows_accepted=? WHERE id=?""",
                 (fetched_at, len(parsed_articles), accepted, run_id),
             )
-        log.info("Scanned %s IBENA reports; added %s OMO observations", len(new_urls), accepted)
+        log.info(
+            "Processed %s new IBENA reports and %s linked mirror reports; wrote %s OMO observations",
+            len(new_urls), len(MIRRORED_REPORTS), accepted,
+        )
         return {
-            "reports_scanned": len(new_urls), "observations": accepted,
+            "ibena_reports_scanned": len(new_urls),
+            "mirror_reports_reapplied": len(MIRRORED_REPORTS),
+            "observations": accepted,
             "latest": latest_dates, "fetched_at": fetched_at,
         }
     except Exception as exc:

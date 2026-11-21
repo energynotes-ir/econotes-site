@@ -148,17 +148,13 @@ def _refresh_indices(now: datetime) -> None:
 
 
 def _seed_cbi_ets() -> None:
-    with database() as connection:
-        quote_rows = connection.execute(
-            "SELECT COUNT(*) FROM observations WHERE series_id='usd-official'"
-        ).fetchone()[0]
-    if quote_rows:
-        return
+    # Reapply the explicitly verified snapshots on each refresh so newly added
+    # dated ETS quotes reach existing databases as well as first-time installs.
     try:
         result = import_cbi_ets_snapshot()
-        log.info("Seeded verified CBI ETS quotes: %s", result)
+        log.info("Updated verified CBI ETS quotes: %s", result)
     except Exception:
-        log.exception("Could not seed verified CBI ETS quotes; next check will retry")
+        log.exception("Could not update verified CBI ETS quotes; next check will retry")
 
 
 def refresh_once(now: datetime | None = None) -> None:

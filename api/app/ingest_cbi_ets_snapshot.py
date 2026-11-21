@@ -11,13 +11,21 @@ from .db import database
 
 SOURCE_ID = "cbi-ets"
 SOURCE_URL = "https://fxmarketrate.cbi.ir/"
-# Exact values captured from the CBI date-lookup page. Source values are Rial per USD;
-# the dashboard series use Toman so they are comparable with the Tether series.
+# Values captured from the CBI date-lookup page plus an explicitly linked daily
+# Center of Exchange quote. Source values are Rial per USD; dashboard values are
+# Toman. Keep the observation date distinct from the publication timestamp.
 VERIFIED_QUOTES = [
     {"jalali": "1404/01/05", "buy_rial": 681_203, "sell_rial": 687_390},
     {"jalali": "1404/01/06", "buy_rial": 681_203, "sell_rial": 687_390},
     {"jalali": "1405/07/07", "buy_rial": 1_720_980, "sell_rial": 1_736_609},
     {"jalali": "1405/07/08", "buy_rial": 1_726_143, "sell_rial": 1_741_819},
+    {
+        "jalali": "1405/08/30",
+        "buy_rial": 1_922_740,
+        "sell_rial": 1_940_200,
+        "source_url": "https://www.tasnimnews.ir/fa/news/1405/08/30/3754123/%D8%AD%D9%88%D8%A7%D9%84%D9%87-%D8%AF%D9%84%D8%A7%D8%B1-%D8%A8%D9%87-194-%D9%87%D8%B2%D8%A7%D8%B1-%D8%AA%D9%88%D9%85%D8%A7%D9%86-%D8%B1%D8%B3%DB%8C%D8%AF/amp",
+        "published_at": "2026-11-21T09:29:00+00:00",
+    },
 ]
 SERIES = {
     "usd-official": {
@@ -40,8 +48,8 @@ def import_snapshot() -> dict:
             """INSERT INTO sources (id, name, homepage, retrieval_method) VALUES (?, ?, ?, ?)
                ON CONFLICT(id) DO UPDATE SET name=excluded.name, homepage=excluded.homepage,
                  retrieval_method=excluded.retrieval_method""",
-            (SOURCE_ID, "بانک مرکزی · نرخ ارز ETS", SOURCE_URL,
-             "Read-only date lookups on the public CBI page; verified snapshot import"),
+            (SOURCE_ID, "بانک مرکزی · نرخ حواله در مرکز مبادله", SOURCE_URL,
+             "CBI ETS date lookups plus explicitly linked published Center of Exchange quotes"),
         )
         run_id = connection.execute(
             "INSERT INTO ingestion_runs (source_id, started_at, status) VALUES (?, ?, 'running')",
@@ -59,12 +67,14 @@ def import_snapshot() -> dict:
                 jalali_compact = f"{jy:04d}{jm:02d}{jd:02d}"
                 for series_id, value_key in (("usd-official", "sell_rial"), ("usd-official-buy", "buy_rial")):
                     value_toman = quote[value_key] / 10
+                    source_url = quote.get("source_url", SOURCE_URL)
                     raw = json.dumps({
-                        "source": SOURCE_URL, "currency": "USD", "field": value_key,
+                        "source": source_url, "currency": "USD", "field": value_key,
                         "value_rial": quote[value_key], "value_toman": value_toman,
                         "selected_jalali_date": jalali_text,
                     }, ensure_ascii=False, separators=(",", ":"))
-                    record_id = f"{SOURCE_ID}-usd-{value_key}-{jalali_compact}"
+                    record_id = source_url if "source_url" in quote else f"{SOURCE_ID}-usd-{value_key}-{jalali_compact}"
+                    published_at = quote.get("published_at", fetched)
                     connection.execute(
                         """INSERT INTO series (id, title, description, group_id, unit, frequency,
                                                 source_id, status, parent_id, last_checked_at)
@@ -87,7 +97,7 @@ def import_snapshot() -> dict:
                                     source_record_id, published_at) VALUES (?, ?, ?, NULL, ?, ?)
                            ON CONFLICT(series_id, observed_on) DO UPDATE SET value=excluded.value,
                              source_record_id=excluded.source_record_id, published_at=excluded.published_at""",
-                        (series_id, observed, value_toman, record_id, fetched),
+                        (series_id, observed, value_toman, record_id, published_at),
                     )
                     counts[series_id] += 1
             connection.execute("UPDATE sources SET last_success_at=? WHERE id=?", (fetched, SOURCE_ID))
