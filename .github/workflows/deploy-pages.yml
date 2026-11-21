@@ -29,7 +29,7 @@ jobs:
         run: npm run build:static
         env:
           NEXT_PUBLIC_STATIC_DATA_BASE_URL: "https://raw.githubusercontent.com/energynotes-ir/econotes-site/main/public/data/api/v1"
-          NEXT_PUBLIC_ASSET_PREFIX: "https://cdn.jsdelivr.net/gh/energynotes-ir/econotes-site@cdn-assets/${{ github.sha }}"
+          NEXT_PUBLIC_ASSET_PREFIX: "https://cdn.jsdelivr.net/gh/energynotes-ir/econotes-site@cdn-assets-${{ github.run_id }}-${{ github.run_attempt }}/${{ github.sha }}"
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static site
@@ -60,29 +60,33 @@ jobs:
       - name: Publish assets to the CDN branch
         env:
           BUILD_SHA: ${{ github.sha }}
+          CDN_BRANCH: cdn-assets-${{ github.run_id }}-${{ github.run_attempt }}
           CDN_SOURCE: ${{ runner.temp }}/cdn-static
         run: |
-          if git ls-remote --exit-code --heads origin cdn-assets >/dev/null 2>&1; then
+          if git ls-remote --exit-code --heads origin "refs/heads/$CDN_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "refs/heads/$CDN_BRANCH:refs/remotes/origin/$CDN_BRANCH"
+            git switch --create "$CDN_BRANCH" --track "origin/$CDN_BRANCH"
+          elif git ls-remote --exit-code --heads origin refs/heads/cdn-assets >/dev/null 2>&1; then
             git fetch origin refs/heads/cdn-assets:refs/remotes/origin/cdn-assets
-            git switch --create cdn-assets --track origin/cdn-assets
+            git switch --create "$CDN_BRANCH" --track origin/cdn-assets
           else
-            git switch --orphan cdn-assets
+            git switch --orphan "$CDN_BRANCH"
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mkdir -p "$BUILD_SHA/_next/static"
           cp -R "$CDN_SOURCE/." "$BUILD_SHA/_next/static/"
           git add "$BUILD_SHA/_next/static"
-          if git diff --cached --quiet; then
-            echo "CDN assets already published for $BUILD_SHA"
-            exit 0
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish static assets for $BUILD_SHA"
+          else
+            echo "CDN assets already present for $BUILD_SHA"
           fi
-          git commit -m "Publish static assets for $BUILD_SHA"
-          git push origin HEAD:cdn-assets
+          git push origin "HEAD:refs/heads/$CDN_BRANCH"
       - name: Verify CDN assets before site deployment
         env:
           BUILD_SHA: ${{ github.sha }}
-          CDN_HOST: https://cdn.jsdelivr.net/gh/energynotes-ir/econotes-site@cdn-assets
+          CDN_HOST: https://cdn.jsdelivr.net/gh/energynotes-ir/econotes-site@cdn-assets-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           while IFS= read -r -d '' file; do
             relative_path="${file#"$BUILD_SHA"/}"
