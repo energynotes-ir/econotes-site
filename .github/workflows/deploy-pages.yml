@@ -27,6 +27,8 @@ jobs:
         run: npm ci
       - name: Build static export
         run: npm run build:static
+        env:
+          NEXT_PUBLIC_STATIC_DATA_BASE_URL: "https://raw.githubusercontent.com/energynotes-ir/econotes-site/main/public/data/api/v1"
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static site
