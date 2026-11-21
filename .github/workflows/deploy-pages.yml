@@ -29,7 +29,7 @@ jobs:
         run: npm run build:static
         env:
           NEXT_PUBLIC_STATIC_DATA_BASE_URL: "https://raw.githubusercontent.com/energynotes-ir/econotes-site/main/public/data/api/v1"
-          NEXT_PUBLIC_ASSET_PREFIX: "https://raw.githubusercontent.com/energynotes-ir/econotes-site/cdn-assets/${{ github.sha }}"
+          NEXT_PUBLIC_ASSET_PREFIX: "https://cdn.jsdelivr.net/gh/energynotes-ir/econotes-site@cdn-assets/${{ github.sha }}"
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static site
@@ -79,6 +79,16 @@ jobs:
           fi
           git commit -m "Publish static assets for $BUILD_SHA"
           git push origin HEAD:cdn-assets
+      - name: Verify CDN assets before site deployment
+        env:
+          BUILD_SHA: ${{ github.sha }}
+          CDN_HOST: https://cdn.jsdelivr.net/gh/energynotes-ir/econotes-site@cdn-assets
+        run: |
+          while IFS= read -r -d '' file; do
+            relative_path="${file#"$BUILD_SHA"/}"
+            curl --fail --silent --show-error --location --retry 3 --retry-all-errors --max-time 60 \
+              "$CDN_HOST/$BUILD_SHA/$relative_path" --output /dev/null
+          done < <(find "$BUILD_SHA/_next/static" -type f -print0)
 
   deploy:
     needs: [build, publish-cdn-assets]
